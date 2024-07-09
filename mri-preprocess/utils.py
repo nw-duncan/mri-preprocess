@@ -9,7 +9,6 @@ Created on Fri Jul  5 20:58:25 2024
 from os import path, mkdir
 from templateflow import api as tflow
 
-
 def check_bids_style(root_dir):
     if not path.isdir(path.join(root_dir, 'rawdata')):
         raise IsADirectoryError('The root directory does not contain a rawdata folder')
