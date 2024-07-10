@@ -6,7 +6,7 @@ Created on Fri Jul  5 20:58:25 2024
 @author: niall
 """
 
-from copy import deepcopy
+import json
 from os import path, mkdir
 from templateflow import api as tflow
 
@@ -31,7 +31,7 @@ def initiate_settings():
                                         "smoothing_sigmas": [[1, 0], [2, 1, 0]],
                                         "number_of_iterations": [[1500, 200], [100, 50, 30]],
                                         "interpolation": "Linear",
-                                        "float": true,
+                                        "float": True,
                                         "winsorize_lower_quantile": 0.02,
                                         "winsorize_upper_quantile": 0.98,
                                         "metric_weight": [1, 1],
@@ -72,45 +72,45 @@ def create_output_dirs(subject, settings, session=None):
         # Create overall output directory
         mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name']))
         # Create subject output directory
-        mkdir(path.join(root_dir, 'derivatives', output_dir_name, subject))
+        mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject))
         # If there are sessions
         if session:
             # Create session output directory
-            mkdir(path.join(root_dir, 'derivatives', output_dir_name, subject, session))
+            mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, session))
             # Create modality sepcific directories
             if settings['process_anat']:
-                mkdir(path.join(root_dir, 'derivatives', output_dir_name, subject, session, 'anat'))
+                mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, session, 'anat'))
             if settings['process_func']:
-                mkdir(path.join(root_dir, 'derivatives', output_dir_name, subject, session, 'func'))
+                mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, session, 'func'))
             return
         # If there are no sessions
         if settings['process_anat']:
-            mkdir(path.join(root_dir, 'derivatives', output_dir_name, subject, 'anat'))
+            mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'anat'))
         if settings['process_func']:
-            mkdir(path.join(root_dir, 'derivatives', output_dir_name, subject, 'func'))
+            mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'func'))
         return
 
     # Directory structure when there is no session name
     # Create overall output directory
-    if not path.isdir(path.join(root_dir, 'derivatives', output_dir_name)):
-        mkdir(path.join(root_dir, 'derivatives', output_dir_name))
+    if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'])):
+        mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name']))
     else:
         print('Output directory already exists. Not overwriting.')
     # Create subject output directory
-    if not path.isdir(path.join(root_dir, 'derivatives', output_dir_name, subject)):
-        mkdir(path.join(root_dir, 'derivatives', output_dir_name, subject))
+    if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject)):
+        mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject))
     else:
         print('Subject output directory already exists. Not overwriting.')
     # Create anatomical output directory
-    if process_anat:
-        if not path.isdir(path.join(root_dir, 'derivatives', out_name, subject, 'anat')):
-            mkdir(path.join(root_dir, 'derivatives', out_name, subject, 'anat'))
+    if settings['process_anat']:
+        if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'anat')):
+            mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'anat'))
         else:
             print('Anatomical output directory already exists. Not overwriting')
     # Create functional output directory
-    if process_func:
-        if not path.isdir(path.join(root_dir, 'derivatives', out_name, subject, 'func')):
-            mkdir(path.join(root_dir, 'derivatives', out_name, subject, 'func'))
+    if settings['process_func']:
+        if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'func')):
+            mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'func'))
         else:
             print('Functional output directory already exists. Not overwriting')
 
