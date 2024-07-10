@@ -7,6 +7,7 @@ Created on Fri Jul  5 20:58:25 2024
 """
 
 import json
+import numpy as np
 from os import path, mkdir
 from templateflow import api as tflow
 
@@ -36,7 +37,11 @@ def initiate_settings():
                                         "winsorize_upper_quantile": 0.98,
                                         "metric_weight": [1, 1],
                                         "radius_or_number_of_bins": [32, 32]},
-                    overwrite_directories=False
+                    overwrite_directories=False,
+                    anat_in=None,
+                    anat_out=None,
+                    func_in=None,
+                    func_out=None
                     )
     return settings
 
@@ -65,8 +70,8 @@ def check_bids_style(root_dir):
         raise IsADirectoryError('The root directory does not contain a derivatives folder')
 
 
-def create_output_dirs(subject, settings, session=None):
-    # Directory structure when there is a session name
+def create_output_dirs(subject, settings):
+    # Create directories, overwriting any existing ones
     if settings['overwrite_directories']:
         print('Overwriting any existing directories.')
         # Create overall output directory
@@ -74,23 +79,24 @@ def create_output_dirs(subject, settings, session=None):
         # Create subject output directory
         mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject))
         # If there are sessions
-        if session:
-            # Create session output directory
-            mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, session))
-            # Create modality sepcific directories
-            if settings['process_anat']:
-                mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, session, 'anat'))
-            if settings['process_func']:
-                mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, session, 'func'))
+        if settings['number_of_sessions']:
+            for ses in np.arange(1, settings['number_of_sessions']+1):
+                # Create session output directory
+                mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f'ses-{str(ses).zfill(2)}'))
+                # Create modality sepcific directories
+                if settings['process_anat']:
+                    mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f'ses-{str(ses).zfill(2)}', 'anat'))
+                if settings['process_func']:
+                    mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f'ses-{str(ses).zfill(2)}', 'func'))
             return
-        # If there are no sessions
+            # If there are no sessions
         if settings['process_anat']:
             mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'anat'))
         if settings['process_func']:
             mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'func'))
         return
 
-    # Directory structure when there is no session name
+    # Create directories, not overwriting any
     # Create overall output directory
     if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'])):
         mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name']))
@@ -101,6 +107,23 @@ def create_output_dirs(subject, settings, session=None):
         mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject))
     else:
         print('Subject output directory already exists. Not overwriting.')
+    if settings['number_of_sessions']:
+        for ses in np.arange(1, settings['number_of_sessions'] + 1):
+            # Create anatomical output directory
+            if settings['process_anat']:
+                if not path.isdir(
+                        path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f'ses-{str(ses).zfill(2)}', 'anat')):
+                    mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f'ses-{str(ses).zfill(2)}', 'anat'))
+                else:
+                    print('Anatomical output directory already exists. Not overwriting')
+            # Create functional output directory
+            if settings['process_func']:
+                if not path.isdir(
+                        path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f'ses-{str(ses).zfill(2)}', 'func')):
+                    mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f'ses-{str(ses).zfill(2)}', 'func'))
+                else:
+                    print('Functional output directory already exists. Not overwriting')
+        return
     # Create anatomical output directory
     if settings['process_anat']:
         if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'anat')):
@@ -115,13 +138,14 @@ def create_output_dirs(subject, settings, session=None):
             print('Functional output directory already exists. Not overwriting')
 
 
-def define_directories(subject, settings, session=None):
-    if session:
-        anat_in = path.join(settings['root_dir'], 'rawdata', subject, session, 'anat')
-        func_in = path.join(settings['root_dir'], 'rawdata', subject, session, 'func')
+def define_directories(subject, settings):
+    if settings['number_of_sessions']:
+        # We set it to the first session here - change the session name elsewhere
+        anat_in = path.join(settings['root_dir'], 'rawdata', subject, 'ses-01', 'anat')
+        func_in = path.join(settings['root_dir'], 'rawdata', subject, 'ses-01', 'func')
 
-        anat_out = path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, session, 'anat')
-        func_out = path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, session, 'func')
+        anat_out = path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'ses-01', 'anat')
+        func_out = path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'ses-01', 'func')
 
     else:
         anat_in = path.join(settings['root_dir'], 'rawdata', subject, 'anat')
@@ -133,14 +157,10 @@ def define_directories(subject, settings, session=None):
     return anat_in, func_in, anat_out, func_out
 
 
-def prepare_directories(subject, settings, session=None):
+def prepare_directories(subject, settings):
     # Create directories and define relevant paths
-    if session:
-        create_output_dirs(subject, settings, session=session)
-        anat_in, func_in, anat_out, func_out = define_directories(subject, settings, session=session)
-    else:
-        create_output_dirs(subject, settings)
-        anat_in, func_in, anat_out, func_out = define_directories(subject, settings)
+    create_output_dirs(subject, settings)
+    anat_in, func_in, anat_out, func_out = define_directories(subject, settings)
 
     # Set required paths in settings object
     if settings['process_anat']:
