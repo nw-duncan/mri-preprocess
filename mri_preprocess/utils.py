@@ -109,6 +109,10 @@ def create_output_dirs(subject, settings):
         print('Subject output directory already exists. Not overwriting.')
     if settings['number_of_sessions']:
         for ses in np.arange(1, settings['number_of_sessions'] + 1):
+            if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f'ses-{str(ses).zfill(2)}')):
+                mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f'ses-{str(ses).zfill(2)}'))
+            else:
+                print('Session directory already exists. Not overwriting.')
             # Create anatomical output directory
             if settings['process_anat']:
                 if not path.isdir(
