@@ -90,8 +90,8 @@ def align_to_template(subject, settings):
     # Set up registration parameters
     ants_reg = ants.Registration(fixed_image = template_path,
                                  moving_image = path.join(settings['anat_out'], f'{subject}_T1w_std_crop_biascorr.nii.gz'),
-                                 output_transform_prefix = path.join(settings['anat_out'], f'{subject}_T1w_to_{settings['template_name']}_'),
-                                 output_warped_image = path.join(settings['anat_out'], f'{subject}_T1w_{settings['template_name']}_res-{str(settings['template_resolution']).zfill(2)}.nii.gz'),
+                                 output_transform_prefix = path.join(settings['anat_out'], f"{subject}_T1w_to_{settings['template_name']}_"),
+                                 output_warped_image = path.join(settings['anat_out'], f"{subject}_T1w_{settings['template_name']}_res-{str(settings['template_resolution']).zfill(2)}.nii.gz"),
                                  dimension = 3,
                                  num_threads = settings['num_threads'],
                                  metric = settings['ants_reg_params']['metric'],
@@ -108,7 +108,7 @@ def align_to_template(subject, settings):
 
 
 def brain_extract(subject, settings):
-    if extract_type == 'ANTs':
+    if settings['T1_brain_extract_type'] == 'ANTs':
         # Get the necessary template and tissue probability map 
         template_path = str(utils.check_template_file('MNI152NLin2009cAsym', 1, desc=None, suffix='T1w'))
         temp = utils.check_template_file('MNI152NLin2009cAsym', 1, desc='brain', suffix=None)
@@ -149,7 +149,7 @@ def brain_extract(subject, settings):
     bet_extract.run()
     
             
-def tissue_segment(subject, root_dir, out_dir):
+def tissue_segment(subject, settings):
     fast = fsl.FAST(in_files=path.join(settings['anat_out'], f'{subject}_T1w_brain.nii.gz'),
                     img_type=1,
                     no_bias=True,
