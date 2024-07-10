@@ -6,26 +6,22 @@ Created on Fri Jul  5 20:51:05 2024
 @author: niall
 """
 
-import json
 from mri_preprocess import utils, anat_prepro, func_prepro
 
 
-def mri_preprocess(subject, setup_file):
-    
-    # Read in the setup file        
-    with open(setup_file, 'r') as json_file:
-        setup_params = json.load(json_file)
-        
+def mri_preprocess(subject, settings_file):
+
+    # Initiate preprocessing settings
+    settings = utils.initiate_settings(settings_file)
+
+    # Update settings with user defined ones
+    settings = utils.update_settings(settings)
+
     # Check that the root directory follows BIDs style
-    utils.check_bids_style(setup_params['root_dir'])
-         
-    
-    # Create necessary output directories
-    utils.create_output_dirs(subject,
-                             setup_params['root_dir'],
-                             setup_params['output_dir'],
-                             setup_params['process_anat'],
-                             setup_params['process_func'])
+    utils.check_bids_style(settings['root_dir'])
+
+    # Do directory management stuff
+    utils.create_output_dirs(subject, settings)
     
     
     ###########################
