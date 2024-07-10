@@ -159,4 +159,40 @@ def tissue_segment(subject, root_dir, out_dir):
     
     fast.run()
     
-    
+def run_anat_prepro(subject, settings):
+    if settings['number_of_sessions']:
+        if settings['number_of_sessions'] > 1:
+            for ses in np.arange(1, settings['number_of_sessions'] + 1):
+                if ses > 1:
+                    old_ses = f'ses-{str(ses-1).zfill(2)}'
+                    new_ses = f'ses-{str(ses - 1).zfill(2)}'
+                    settings['anat_in'] = settings['anat_in'].replace(old_ses, new_ses)
+                    settings['anat_out'] = settings['anat_out'].replace(old_ses, new_ses)
+                # Reorient image to standard
+                reorient_t1_to_standard(subject, settings)
+                # Reduce field of view
+                reduce_fov(subject, settings)
+                # Biasfield correct image
+                create_rough_mask(subject, settings)
+                bias_correct(subject, settings)
+                # Align to template
+                align_to_template(subject, settings)
+                # Brain extraction
+                brain_extract(subject, settings)
+                # Tissue segmentation
+                tissue_segment(subject, settings)
+    else:
+        # Reorient image to standard
+        reorient_t1_to_standard(subject, settings)
+        # Reduce field of view
+        reduce_fov(subject, settings)
+        # Biasfield correct image
+        create_rough_mask(subject, settings)
+        bias_correct(subject, settings)
+        # Align to template
+        align_to_template(subject, settings)
+        # Brain extraction
+        brain_extract(subject, settings)
+        # Tissue segmentation
+        tissue_segment(subject, settings)
+
