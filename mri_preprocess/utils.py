@@ -26,6 +26,7 @@ def initiate_settings():
                     number_of_sessions=None,
                     drop_nonsteady_bold=True,
                     bold_ref_type="median",
+                    reference_image=None,
                     ants_reg_params={"transforms": ["Affine", "SyN"],
                                         "metric": ["Mattes", "Mattes"],
                                         "shrink_factors": [[2, 1], [3, 2, 1]],
