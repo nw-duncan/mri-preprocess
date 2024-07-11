@@ -92,6 +92,51 @@ def median_reference(subject, settings, run_number):
     os.remove(path.join(settings['func_out'], 'temp-bold.nii.gz'))
 
 
+def create_wmseg(subject, settings):
+    if not path.isfile(path.join(settings['anat_out'], f'{subject}_wmseg.nii.gz')):
+        # Threshold white matter probability at 50% and make binary mask
+        thresh = fsl.Threshold(in_file=path.join(settings['anat_out'], f'{subject}_T1w_brain_pve_2.nii.gz'),
+                      thresh=0.5,
+                      out_file=path.join(settings['anat_out'], f'{subject}_wmseg.nii.gz'))
+        thresh.run()
+        binarise = fsl.UnaryMaths(in_file=,
+                                  operation='bin',
+                                  out_file=path.join(settings['anat_out'], f'{subject}_wmseg.nii.gz'))
+        binarise.run()
+    if not path.isfile(path.join(settings['anat_out'], f'{subject}_wmedge.nii.gz')):
+        subprocess.run(['fslmaths',
+                        path.join(settings['anat_out'], f'{subject}_wmseg.nii.gz'),
+                        '-edge',
+                        '-bin',
+                        '-mas',
+                        path.join(settings['anat_out'], f'{subject}_wmseg.nii.gz'),
+                        path.join(settings['anat_out'], f'{subject}_wm-edge.nii.gz')])
+
+
+def align_to_anatomical(subject, settings, run_number):
+    # Create the white matter segmenation needed for BBR
+    create_wmseg(subject, settings)
+
+    # Do initial alignment
+    flirt = fsl.FLIRT(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"),
+                      reference=path.join(settings['anat_out'], f'{subject}_T1w_brain.nii.gz'),
+                      dof=6,
+                      out_matrix_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold2anat_init.mat"))
+    flirt.run()
+
+    # Do BBR registration
+    flirt = fsl.FLIRT(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"),
+                      reference=path.join(settings['anat_out'], f'{subject}_T1w_brain.nii.gz'),
+                      in_matrix_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold2anat_init.mat"),
+                      cost='bbr',
+                      wm_seg=path.join(settings['anat_out'], f'{subject}_wmseg.nii.gz'),
+                      dof=6,
+                      schedule=path.join(os.environ['FSLDIR'], '/etc/flirtsch/bbr.sch'),
+                      out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference_anat-space.nii.gz"),
+                      out_matrix_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold2anat.mat"))
+    flirt.run()
+
+
 def prepare_bold(subject, settings, run_number):
 
     # Prepare the image for preprocessing
@@ -103,9 +148,8 @@ def prepare_bold(subject, settings, run_number):
     elif settings['bold_reference_type'] == 'median':
         median_reference(subject, settings, run_number)
     elif settings['bold_reference_type'] == 'external':
-
-        external_reference(subject, settings, reference_image, run_number)
+        external_reference(subject, settings,  run_number)
 
     # Align reference to anatomical
-
+    align_to_anatomical(subject, settings, run_number)
 
