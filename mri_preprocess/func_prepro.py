@@ -6,6 +6,7 @@ Created on Sun Jul  7 17:06:37 2024
 @author: niall
 """
 
+import os
 import subprocess
 import nibabel as nib
 import numpy as np
@@ -52,31 +53,31 @@ def detect_nonsteady(subject, settings, run_number=None):
     return int(n_vols)
 
 
-def initiate_preprocessed_image(subject, settings, run_number=None, nonsteady_vols=None):
+def initiate_preprocessed_image(subject, settings, run_number=None):
     # Create a copy of the BOLD input image. Remove any non-steady volumes if required
     if run_number:
         # Create a copy of the BOLD input image.
         copyfile(path.join(settings['func_in'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold.nii.gz"),
                  path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
+        # Detect non-steady state volumes
+        nonsteady_vols = detect_nonsteady(subject, settings, run_number=run_number)
         # Remove any non-steady volumes if required
         if settings['drop_nonsteady_vols']:
             in_img = nib.load(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
             out_img = nib.Nifti1Image(in_img.get_fdata()[:, :, :, nonsteady_vols:], in_img.affine)
             out_img.to_filename(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
-        # Reorient to standard
-
     else:
         copyfile(path.join(settings['func_in'], f"{subject}_task-{settings['task_name']}_bold.nii.gz"),
                  path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_bold-preproc.nii.gz"))
+        # Detect non-steady state volumes
+        nonsteady_vols = detect_nonsteady(subject, settings)
         if settings['drop_nonsteady_vols']:
             in_img = nib.load(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_bold-preproc.nii.gz"))
             out_img = nib.Nifti1Image(in_img.get_fdata()[:, :, :, nonsteady_vols:], in_img.affine)
             out_img.to_filename(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_bold-preproc.nii.gz"))
     # Reorient to standard
-
-
-
-
+    reorient_bold_to_standard(subject, settings, run_number=run_number)
+    return nonsteady_vols
 
 def nonsteady_reference(subject, settings, n_vols, run_number=None):
     # Run if the filename has a run number in it
@@ -111,18 +112,40 @@ def external_reference(subject, settings, reference_image, run_number=None):
     
 
 def median_reference(subject, settings, run_number=None):
+    # Do an initial alignment of the image volumes
+    mcflirt = fsl.MCFLIRT(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
+                          dof=6,
+                          ref_vol=0,
+                          save_mats=False,
+                          save_plots=False,
+                          stats_imgs=False,
+                          out_file=path.join(settings['func_out'], 'temp-bold.nii.gz'))
+    mcflirt.run()
+    # Calculate median
+    med_image = fsl.MedianImage(in_file=path.join(settings['func_out'], 'temp-bold.nii.gz'),
+                                dimension='T',
+                                nan2zeros=True,
+                                out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"))
+    # Delete temporary file
+    os.remove(path.join(settings['func_out'], 'temp-bold.nii.gz'))
+
+
 
     
     
 def prepare_bold(subject, settings, run_number=None, reference_image=None):
-    
+
+    # Prepare the image for preprocessing
+    nonsteady_vols = initiate_preprocessed_image(subject, settings, run_number=None)
+
+    # Create the bold reference image
+    if settings['bold_reference_type'] == 'nonsteady':
+        nonsteady_reference(subject, settings, nonsteady_vols, run_number=run_number)
+    elif settings['bold_reference_type'] == 'median':
+        median_reference(subject, settings, run_number=run_number)
+    elif settings['bold_reference_type'] == 'external':
+        external_reference(subject, settings, reference_image, run_number=run_number)
+
+    # Align reference to anatomical
 
 
-
-
-    
-    
-    
-    
-    
-                                        
