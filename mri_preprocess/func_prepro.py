@@ -17,8 +17,8 @@ from shutil import copyfile
 
 def reorient_bold_to_standard(subject, settings, run_number=None):
     if run_number:
-        in_file = path.join(settings['func_in'], f"{subject}_task-{settings['task_name']}_run-{str(run_number).zfill(2)}_bold.nii.gz")
-        out_root = path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{str(run_number).zfill(2)}_")
+        in_file = path.join(settings['func_in'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold.nii.gz")
+        out_root = path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_")
     else:
         in_file = path.join(settings['func_in'], f"{subject}_task-{settings['task_name']}_bold.nii.gz")
         out_root = path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_")
@@ -39,7 +39,7 @@ def reorient_bold_to_standard(subject, settings, run_number=None):
 def detect_nonsteady(subject, settings, run_number=None):
     # Run if the filename has a run number in it
     if run_number:
-        steady = NonSteadyStateDetector(in_file=path.join(settings['func_in'], f"{subject}_task-{settings['task_name']}_run-{str(run_number).zfill(2)}_bold.nii.gz"))
+        steady = NonSteadyStateDetector(in_file=path.join(settings['func_in'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold.nii.gz"))
         steady.run()
         n_vols = str(steady.outputs)
         n_vols = n_vols.split('=')[-1]
@@ -50,19 +50,45 @@ def detect_nonsteady(subject, settings, run_number=None):
     n_vols = str(steady.outputs)
     n_vols = n_vols.split('=')[-1]
     return int(n_vols)
-    
+
+
+def initiate_preprocessed_image(subject, settings, run_number=None, nonsteady_vols=None):
+    # Create a copy of the BOLD input image. Remove any non-steady volumes if required
+    if run_number:
+        # Create a copy of the BOLD input image.
+        copyfile(path.join(settings['func_in'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold.nii.gz"),
+                 path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
+        # Remove any non-steady volumes if required
+        if settings['drop_nonsteady_vols']:
+            in_img = nib.load(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
+            out_img = nib.Nifti1Image(in_img.get_fdata()[:, :, :, nonsteady_vols:], in_img.affine)
+            out_img.to_filename(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
+        # Reorient to standard
+
+    else:
+        copyfile(path.join(settings['func_in'], f"{subject}_task-{settings['task_name']}_bold.nii.gz"),
+                 path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_bold-preproc.nii.gz"))
+        if settings['drop_nonsteady_vols']:
+            in_img = nib.load(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_bold-preproc.nii.gz"))
+            out_img = nib.Nifti1Image(in_img.get_fdata()[:, :, :, nonsteady_vols:], in_img.affine)
+            out_img.to_filename(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_bold-preproc.nii.gz"))
+    # Reorient to standard
+
+
+
+
 
 def nonsteady_reference(subject, settings, n_vols, run_number=None):
     # Run if the filename has a run number in it
     if run_number:
-        in_img = nib.load(path.join(settings['func_in'], f"{subject}_task-{settings['task_name']}_run-{str(run_number).zfill(2)}_bold.nii.gz"))
+        in_img = nib.load(path.join(settings['func_in'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold.nii.gz"))
         if n_vols == 1:
             in_data = in_img.get_fdata()[:, :, :, 0]
             out_img = nib.Nifti1Image(in_data, in_img.affine)
         elif n_vols > 1:
             in_data = in_img.get_fdata()[:, :, :, 0:n_vols]
             out_img = nib.Nifti1Image(np.mean(in_data, axis=-1), in_img.affine)
-        out_img.to_filename(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{str(run_number).zfill(2)}_bold-reference.nii.gz"))
+        out_img.to_filename(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"))
         return
     # Run if there is no run number in the filename
     else:
@@ -74,17 +100,26 @@ def nonsteady_reference(subject, settings, n_vols, run_number=None):
             in_data = in_img.get_fdata()[:, :, :, 0:n_vols]
             out_img = nib.Nifti1Image(np.mean(in_data, axis=-1), in_img.affine)
         out_img.to_filename(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_bold-reference.nii.gz"))
-        
-        
 
-def external_reference(subject, root_dir, out_dir, task_name, run_number):
+def external_reference(subject, settings, reference_image, run_number=None):
+    if run_number:
+        copyfile(reference_image,
+                 path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"))
+    else:
+        copyfile(reference_image,
+                 path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_bold-reference.nii.gz"))
+    
+
+def median_reference(subject, settings, run_number=None):
+
     
     
+def prepare_bold(subject, settings, run_number=None, reference_image=None):
     
-    
-def prepare_bold(subject, root_dir, out_dir, task_name, run_number):
-    
-    # Reorient to standard
+
+
+
+
     
     
     
