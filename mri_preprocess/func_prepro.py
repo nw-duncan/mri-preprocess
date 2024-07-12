@@ -20,23 +20,23 @@ def reorient_bold_to_standard(subject, settings, run_number):
     in_file = path.join(settings['func_in'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold.nii.gz")
     out_root = path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_")
     # Calculate the transform between original orientation and standard orientation
-    with open(path.join(out_root, 'orig2std.mat'), 'w') as fd:
+    with open(out_root + 'orig2std.mat', 'w') as fd:
         subprocess.run(['fslreorient2std', in_file], stdout=fd)
     # Calculate the inverse of that transform
     subprocess.run(['convert_xfm',
                     '-inverse',
-                    path.join(out_root, 'orig2std.mat'),
+                    out_root + 'orig2std.mat',
                     '-omat',
-                    path.join(out_root, 'std2orig.mat')])
+                    out_root + 'std2orig.mat'])
     # Create new image
     subprocess.run(['fslreorient2std', in_file,
-                    path.join(out_root, 'preproc-bold.nii.gz')])
+                    out_root + 'bold-preproc.nii.gz'])
 
 
 def detect_nonsteady(subject, settings, run_number):
     steady = NonSteadyStateDetector(in_file=path.join(settings['func_in'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold.nii.gz"))
-    steady.run()
-    n_vols = str(steady.outputs)
+    temp = steady.run()
+    n_vols = str(temp.outputs)
     n_vols = n_vols.split('=')[-1]
     return int(n_vols)
 
@@ -88,6 +88,7 @@ def median_reference(subject, settings, run_number):
                                 dimension='T',
                                 nan2zeros=True,
                                 out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"))
+    med_image.run()
     # Delete temporary file
     os.remove(path.join(settings['func_out'], 'temp-bold.nii.gz'))
 
@@ -99,7 +100,7 @@ def create_wmseg(subject, settings):
                       thresh=0.5,
                       out_file=path.join(settings['anat_out'], f'{subject}_wmseg.nii.gz'))
         thresh.run()
-        binarise = fsl.UnaryMaths(in_file=,
+        binarise = fsl.UnaryMaths(in_file=path.join(settings['anat_out'], f'{subject}_wmseg.nii.gz'),
                                   operation='bin',
                                   out_file=path.join(settings['anat_out'], f'{subject}_wmseg.nii.gz'))
         binarise.run()
@@ -131,10 +132,13 @@ def align_to_anatomical(subject, settings, run_number):
                       cost='bbr',
                       wm_seg=path.join(settings['anat_out'], f'{subject}_wmseg.nii.gz'),
                       dof=6,
-                      schedule=path.join(os.environ['FSLDIR'], '/etc/flirtsch/bbr.sch'),
+                      schedule=os.environ['FSLDIR'] + '/etc/flirtsch/bbr.sch',
                       out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference_anat-space.nii.gz"),
                       out_matrix_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold2anat.mat"))
     flirt.run()
+
+
+def slicetime_correct(subject, settings, run_number):
 
 
 def prepare_bold(subject, settings, run_number):
