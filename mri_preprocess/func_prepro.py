@@ -6,6 +6,7 @@ Created on Sun Jul  7 17:06:37 2024
 @author: niall
 """
 
+import json
 import os
 import subprocess
 import nibabel as nib
@@ -13,7 +14,13 @@ import numpy as np
 from nipype.interfaces import fsl, afni
 from nipype.algorithms.confounds import NonSteadyStateDetector, ComputeDVARS, FramewiseDisplacement
 from os import path
-from shutil import copyfile
+from shutil import copyfile, move
+
+def tr_from_json(subject, settings, run_number):
+    with open(path.join(settings['func_in'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold.json"), 'r') as json_file:
+        temp = json.load(json_file)
+    settings['bold_TR'] = temp['RepetitionTime']
+    return settings
 
 
 def reorient_bold_to_standard(subject, settings, run_number):
@@ -40,6 +47,15 @@ def detect_nonsteady(subject, settings, run_number):
     n_vols = n_vols.split('=')[-1]
     return int(n_vols)
 
+def brain_extract_bold(subject, settings, run_number):
+    bet = fsl.BET(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
+                  functional=True,
+                  mask=True,
+                  out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
+    bet.run()
+    # Rename mask
+    move(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc_mask.nii.gz"),
+         path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_brain-mask.nii.gz"))
 
 def initiate_preprocessed_image(subject, settings, run_number):
     # Create a copy of the BOLD input image.
@@ -54,6 +70,8 @@ def initiate_preprocessed_image(subject, settings, run_number):
         out_img.to_filename(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
     # Reorient to standard
     reorient_bold_to_standard(subject, settings, run_number)
+    # Brain extract
+    brain_extract_bold(subject, settings, run_number)
     return nonsteady_vols
 
 def nonsteady_reference(subject, settings, n_vols, run_number):
@@ -137,6 +155,11 @@ def align_to_anatomical(subject, settings, run_number):
                       out_matrix_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold2anat.mat"))
     flirt.run()
 
+    # Calculate inverse transform
+    invert = fsl.ConvertXFM(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold2anat.mat"),
+                            invert_xfm=True,
+                            out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_anat2bold.mat"))
+
 def slicetime_correct(subject, settings, run_number):
 
 
@@ -152,12 +175,38 @@ def volume_realign(subject, settings, run_number):
                           out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
     mcflirt.run()
 
-    dvars = ComputeDVARS(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
-                         )
+    # Tidy filenames
+    move(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz.par"),
+                   path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_movement.par"))
+    move(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz_abs.rms"),
+                   path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_movement-abs-RMS.csv"))
+    move(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz_rel.rms"),
+                   path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_movement-rel-RMS.csv"))
+    os.remove(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz_rel_mean.rms"))
+    os.remove(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz_abs_mean.rms"))
+
+
+    # Calculate head motion parameters
+    # dvars = ComputeDVARS(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
+    #                      in_mask=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_brain-mask.nii.gz"),
+    #                      series_tr=settings['bold_TR'],
+    #                      out_std=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_movement-DVARS.csv"))
+    # dvars.run()
+
+    framewise = FramewiseDisplacement(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_movement.par"),
+                                      parameter_source='FSL',
+                                      series_tr=settings['bold_TR'],
+                                      out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_movement-FD.csv"))
+    framewise.run()
+
 
 def prepare_bold(subject, settings, run_number):
     # Make run number into string
     run_number = str(run_number).zfill(2)
+
+    # Ensure the TR value is set
+    if not settings['bold_TR']:
+        settings = tr_from_json(subject, settings, run_number)
 
     # Prepare the image for preprocessing
     nonsteady_vols = initiate_preprocessed_image(subject, settings, run_number)
@@ -173,9 +222,13 @@ def prepare_bold(subject, settings, run_number):
     # Align reference to anatomical
     align_to_anatomical(subject, settings, run_number)
 
-    # Slice-time correct
-
     # Volume realignment
+    volume_realign(subject, settings, run_number)
+
+    # Slice-time correct
+    slicetime_correct(subject, settings, run_number)
+
+
 
 
 

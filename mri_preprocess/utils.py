@@ -15,6 +15,7 @@ from templateflow import api as tflow
 def initiate_settings():
     settings = dict(root_dir="",
                     output_dir_name="",
+                    number_of_sessions=None,
                     num_threads=1,
                     process_anat=True,
                     process_func=True,
@@ -23,7 +24,7 @@ def initiate_settings():
                     T1_brain_extract_type="BET",
                     task_name="",
                     number_of_runs=None,
-                    number_of_sessions=None,
+                    bold_TR=None,
                     drop_nonsteady_vols=True,
                     bold_reference_type="median",
                     reference_image=None,
