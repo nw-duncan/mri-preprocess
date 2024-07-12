@@ -11,7 +11,7 @@ import subprocess
 import nibabel as nib
 import numpy as np
 from nipype.interfaces import fsl, afni
-from nipype.algorithms.confounds import NonSteadyStateDetector
+from nipype.algorithms.confounds import NonSteadyStateDetector, ComputeDVARS, FramewiseDisplacement
 from os import path
 from shutil import copyfile
 
@@ -137,11 +137,27 @@ def align_to_anatomical(subject, settings, run_number):
                       out_matrix_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold2anat.mat"))
     flirt.run()
 
-
 def slicetime_correct(subject, settings, run_number):
 
 
+
+def volume_realign(subject, settings, run_number):
+    mcflirt = fsl.MCFLIRT(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
+                          ref_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"),
+                          dof=6,
+                          save_mats=False,
+                          save_plots=True,
+                          save_rms=True,
+                          stats_imgs=False,
+                          out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
+    mcflirt.run()
+
+    dvars = ComputeDVARS(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
+                         )
+
 def prepare_bold(subject, settings, run_number):
+    # Make run number into string
+    run_number = str(run_number).zfill(2)
 
     # Prepare the image for preprocessing
     nonsteady_vols = initiate_preprocessed_image(subject, settings, run_number)
@@ -156,4 +172,10 @@ def prepare_bold(subject, settings, run_number):
 
     # Align reference to anatomical
     align_to_anatomical(subject, settings, run_number)
+
+    # Slice-time correct
+
+    # Volume realignment
+
+
 
