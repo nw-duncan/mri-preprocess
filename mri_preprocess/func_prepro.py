@@ -140,8 +140,12 @@ def align_to_anatomical(subject, settings, run_number):
     flirt = fsl.FLIRT(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"),
                       reference=path.join(settings['anat_out'], f'{subject}_T1w_brain.nii.gz'),
                       dof=6,
-                      out_matrix_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold2anat_init.mat"))
+                      out_matrix_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold2anat_init.mat"),
+                      out_file=path.join(settings['func_out'], 'temp.nii.gz'))
     flirt.run()
+
+    # Clean up unnecessary image
+    os.remove(path.join(settings['func_out'], 'temp.nii.gz'))
 
     # Do BBR registration
     flirt = fsl.FLIRT(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"),
