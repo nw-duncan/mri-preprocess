@@ -231,7 +231,6 @@ def slicetime_correct(subject, settings, run_number):
 
     move(path.join(settings['func_out'], "temp.nii.gz"),
          path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
-    os.remove(path.join(settings['func_out'], "temp.nii.gz"))
     os.remove(path.join(os.getcwd(), 'slice_timing.1D'))
 
 
@@ -248,7 +247,16 @@ def volume_realign(subject, settings, run_number):
     mcflirt.run()
 
 
-def prepare_bold(subject, settings, run_number):
+def apply_brain_mask(subject, settings, run_number):
+
+    mask_img = fsl.ApplyMask(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
+                             mask_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_brain-mask.nii.gz"),
+                             out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
+
+    mask_img.run()
+
+
+def preprocess_bold(subject, settings, run_number):
     # Make run number into string
     run_number = str(run_number).zfill(2)
 
@@ -279,7 +287,5 @@ def prepare_bold(subject, settings, run_number):
     # Volume realignment
     volume_realign(subject, settings, run_number)
 
-
-
-
-
+    # Zero values outside of brain
+    apply_brain_mask(subject, settings, run_number)
