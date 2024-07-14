@@ -165,6 +165,7 @@ def estimate_head_motion(subject, settings, run_number):
     mcflirt = fsl.MCFLIRT(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
                           ref_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"),
                           dof=6,
+                          interpolation='nn',
                           save_mats=False,
                           save_plots=True,
                           save_rms=True,
@@ -201,6 +202,37 @@ def estimate_head_motion(subject, settings, run_number):
 
 def slicetime_correct(subject, settings, run_number):
 
+    if path.isfile(path.join(settings['func_in'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold.json")):
+        with open(path.join(settings['func_in'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold.json"), 'r') as json_file:
+            temp = json.load(json_file)
+        settings['bold_TR'] = temp['RepetitionTime']
+        slice_times = temp['SliceTiming']
+        if 'SliceEncodingDirection' in temp.keys():
+            slice_encoding_direction = temp['SliceEncodingDirection']
+        else:
+            slice_encoding_direction = settings['slice_encoding_direction']
+    else:
+        slice_encoding_direction = settings['slice_encoding_direction']
+        ### Need to finish this to work with data where the BIDs sidecar isn't available
+
+    first, last = min(slice_times), max(slice_times)
+    frac = settings['slice_time_ref']
+    tzero = np.round(first + frac * (last - first), 3)
+
+    tshift = afni.TShift(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
+                         tzero=tzero,
+                         tr=str(settings['bold_TR']),
+                         slice_timing=slice_times,
+                         num_threads=settings['num_threads'],
+                         slice_encoding_direction=slice_encoding_direction,
+                         interp='Fourier',  # Use this???
+                         out_file=path.join(settings['func_out'], "temp.nii.gz"))  # ANFI won't overwrite an existing file
+    tshift.run()
+
+    move(path.join(settings['func_out'], "temp.nii.gz"),
+         path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
+    os.remove(path.join(settings['func_out'], "temp.nii.gz"))
+    os.remove(path.join(os.getcwd(), 'slice_timing.1D'))
 
 
 def volume_realign(subject, settings, run_number):
