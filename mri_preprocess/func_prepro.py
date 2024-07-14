@@ -160,11 +160,8 @@ def align_to_anatomical(subject, settings, run_number):
                             invert_xfm=True,
                             out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_anat2bold.mat"))
 
-def slicetime_correct(subject, settings, run_number):
 
-
-
-def volume_realign(subject, settings, run_number):
+def estimate_head_motion(subject, settings, run_number):
     mcflirt = fsl.MCFLIRT(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
                           ref_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"),
                           dof=6,
@@ -172,18 +169,21 @@ def volume_realign(subject, settings, run_number):
                           save_plots=True,
                           save_rms=True,
                           stats_imgs=False,
-                          out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
+                          out_file=path.join(settings['func_out'], 'temp.nii.gz'))
     mcflirt.run()
 
     # Tidy filenames
-    move(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz.par"),
+    move(path.join(settings['func_out'], "temp.nii.gz.par"),
                    path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_movement.par"))
-    move(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz_abs.rms"),
+    move(path.join(settings['func_out'], "temp.nii.gz_abs.rms"),
                    path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_movement-abs-RMS.csv"))
-    move(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz_rel.rms"),
+    move(path.join(settings['func_out'], "temp.nii.gz_rel.rms"),
                    path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_movement-rel-RMS.csv"))
-    os.remove(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz_rel_mean.rms"))
-    os.remove(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz_abs_mean.rms"))
+    os.remove(path.join(settings['func_out'], "temp.nii.gz_rel_mean.rms"))
+    os.remove(path.join(settings['func_out'], "temp.nii.gz_abs_mean.rms"))
+    os.remove(path.join(settings['func_out'], "temp.nii.gz"))
+    if path.isdir(path.join(settings['func_out'], "temp.nii.gz.mat")):
+        os.rmdir(path.join(settings['func_out'], "temp.nii.gz.mat"))
 
 
     # Calculate head motion parameters
@@ -198,6 +198,22 @@ def volume_realign(subject, settings, run_number):
                                       series_tr=settings['bold_TR'],
                                       out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_movement-FD.csv"))
     framewise.run()
+
+def slicetime_correct(subject, settings, run_number):
+
+
+
+def volume_realign(subject, settings, run_number):
+    mcflirt = fsl.MCFLIRT(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
+                          ref_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"),
+                          dof=6,
+                          interpolation='sinc',
+                          save_mats=False,
+                          save_plots=False,
+                          save_rms=False,
+                          stats_imgs=False,
+                          out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
+    mcflirt.run()
 
 
 def prepare_bold(subject, settings, run_number):
@@ -222,11 +238,14 @@ def prepare_bold(subject, settings, run_number):
     # Align reference to anatomical
     align_to_anatomical(subject, settings, run_number)
 
-    # Volume realignment
-    volume_realign(subject, settings, run_number)
+    # Estimate head motion
+    estimate_head_motion(subject, settings, run_number)
 
     # Slice-time correct
     slicetime_correct(subject, settings, run_number)
+
+    # Volume realignment
+    volume_realign(subject, settings, run_number)
 
 
 
