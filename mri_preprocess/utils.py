@@ -23,7 +23,7 @@ def initiate_settings():
                     template_resolution=1,
                     T1_brain_extract_type="BET",
                     task_name="",
-                    number_of_runs=None,
+                    number_func_runs=1,
                     bold_TR=None,
                     drop_nonsteady_vols=True,
                     bold_reference_type="median",

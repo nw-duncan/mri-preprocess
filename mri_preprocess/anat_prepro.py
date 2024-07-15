@@ -159,7 +159,7 @@ def tissue_segment(subject, settings):
     
     fast.run()
     
-def run_anat_prepro(subject, settings):
+def run_anat_preprocess(subject, settings):
     if settings['number_of_sessions']:
         if settings['number_of_sessions'] > 1:
             for ses in np.arange(1, settings['number_of_sessions'] + 1):

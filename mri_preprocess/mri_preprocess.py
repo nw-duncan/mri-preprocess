@@ -7,7 +7,8 @@ Created on Fri Jul  5 20:51:05 2024
 """
 
 from mri_preprocess import utils
-from mri_preprocess.anat_prepro import run_anat_prepro
+from mri_preprocess.anat_prepro import run_anat_preprocess
+from mri_preprocess.func_prepro import run_func_preprocess
 
 
 def mri_preprocess(subject, settings_file):
@@ -37,6 +38,10 @@ def mri_preprocess(subject, settings_file):
     ######################################################
     
     if settings['process_func']:
+
+        for run_number in range(settings['number_func_runs']):
+            run_number += 1
+            run_func_preprocess(subject, settings, run_number)
 
                 
                 

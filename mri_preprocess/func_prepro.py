@@ -260,7 +260,7 @@ def apply_brain_mask(subject, settings, run_number):
     mask_img.run()
 
 
-def preprocess_bold(subject, settings, run_number):
+def run_func_preprocess(subject, settings, run_number):
     # Make run number into string
     run_number = str(run_number).zfill(2)
 
