@@ -8,7 +8,7 @@ Created on Fri Jul  5 20:58:25 2024
 
 import json
 import numpy as np
-from os import path, mkdir
+from os import path, mkdir, cpu_count
 from templateflow import api as tflow
 
 
@@ -23,7 +23,8 @@ def initiate_settings():
                     template_resolution=1,
                     T1_brain_extract_type="BET",
                     task_name="",
-                    number_func_runs=1,
+                    number_of_runs=1,
+                    process_multi_runs=False,
                     bold_TR=None,
                     drop_nonsteady_vols=True,
                     bold_reference_type="median",
@@ -65,6 +66,10 @@ def update_settings(settings, settings_file):
         elif item == 'ants_reg_params':
             for ants_item in new_settings['ants_reg_params']:
                 settings['ants_reg_params'][ants_item] = new_settings['ants_reg_params'][ants_item]
+
+    # Check that the set number of threads isn't bigger than the number available
+    if settings['num_threads'] > cpu_count():
+        settings['num_threads'] = cpu_count()
 
     return settings
 
@@ -196,4 +201,13 @@ def check_template_file(template_name, resolution, desc=None, suffix=None):
                               desc=desc)
     return template_path
         
-    
+
+def check_thread_no(settings):
+
+    # Check when processing multiple runs that the combined number isn't bigger than available
+    if cpu_count()/settings['number_of_runs'] < settings['num_threads']:
+        settings['num_threads'] = int(np.floor(cpu_count()/settings['number_of_runs']))
+
+    return settings
+
+
