@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri Jul  5 20:51:05 2024
 
-@author: niall
+Run basic preprocessing on anatomical and functional MRI data.
+
 """
 
 from joblib import Parallel, delayed

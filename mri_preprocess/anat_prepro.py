@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri Jul  5 20:20:27 2024
 
-@author: niall
+Functions for preprocessing T1 anatomical data.
+
 """
 
 

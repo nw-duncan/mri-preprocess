@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sun Jul  7 17:06:37 2024
 
-@author: niall
+Functions for preprocessing BOLD functional data.
+
 """
 
 import json
