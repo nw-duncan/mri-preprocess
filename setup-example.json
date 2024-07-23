@@ -1,0 +1,27 @@
+{
+    "root_dir": "/home/niall/work/fmri-preprocess",
+
+    "output_dir": "mri-preprocess-test",
+    
+    "num_threads": 10,
+    
+    "process_anat": true,
+    
+    "T1_brain_extract_type": "BET",
+
+    "template_name": "MNI152NLin2009cAsym",
+
+    "template_resolution": 1,
+    
+    "process_func": true,
+    
+    "task_name": "rest",
+    
+    "number_of_runs": 1,
+    
+    "drop_nonsteady_bold": true,
+    
+    "bold_ref_type": "median",
+}
+
+
