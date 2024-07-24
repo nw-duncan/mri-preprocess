@@ -62,17 +62,17 @@ def initiate_preprocessed_image(subject, settings, run_number):
     copyfile(path.join(settings['func_in'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold.nii.gz"),
              path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
     # Detect non-steady state volumes
-    nonsteady_vols = detect_nonsteady(subject, settings, run_number)
+    settings['number_nonsteady_vols'] = detect_nonsteady(subject, settings, run_number)
     # Remove any non-steady volumes if required
     if settings['drop_nonsteady_vols']:
         in_img = nib.load(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
-        out_img = nib.Nifti1Image(in_img.get_fdata()[:, :, :, nonsteady_vols:], in_img.affine)
+        out_img = nib.Nifti1Image(in_img.get_fdata()[:, :, :, settings['number_nonsteady_vols']], in_img.affine)
         out_img.to_filename(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
     # Reorient to standard
     reorient_bold_to_standard(subject, settings, run_number)
     # Brain extract
     brain_extract_bold(subject, settings, run_number)
-    return nonsteady_vols
+    return settings
 
 def nonsteady_reference(subject, settings, n_vols, run_number):
 
@@ -259,21 +259,61 @@ def apply_brain_mask(subject, settings, run_number):
 
     mask_img.run()
 
+def detrend_data(subject, settings, run_number):
+    # Load in functional data
+    in_img = nib.load(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
+    settings['number_usable_vols'] = in_img.shape[-1]
+    mask_img = nib.load(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_brain-mask.nii.gz")).get_fdata()
+    tcs = in_img.get_fdata()[mask_img == 1]
+    tcs_mean = np.nanmean(tcs, axis=-1, keepdims=True)
+
+    # Generate design matrix
+    regressors = np.ones((settings['number_usable_vols'], 1))
+    for i in range(settings['detrend_degree']):
+        polynomial_func = np.polynomial.Legendre.basis(i + 1)
+        value_array = np.linspace(-1, 1, settings['number_usable_vols'])
+        regressors = np.hstack((regressors, polynomial_func(value_array)[:, np.newaxis]))
+
+    # Remove from data
+    betas = np.linalg.pinv(regressors).dot(tcs.T)
+    datahat = regressors[:, 1:].dot(betas[1:, ...]).T
+    tcs_clean = (tcs - datahat) + tcs_mean
+
+    # Make new image
+    out_img = np.zeros(in_img.shape)
+    out_img[mask_img == 1] = tcs_clean
+    out_img = nib.Nifti1Image(out_img, in_img.affine)
+    out_img.to_filename(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
+
+    # Load in head motion parameters
+    hm = np.loadtxt(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_movement.par"))
+    hm_mean = np.mean(hm, axis=0, keepdims=True)
+
+    # Remove trend from head motion
+    betas = np.linalg.pinv(regressors).dot(hm)
+    datahat = regressors[:, 1:].dot(betas[1:, ...])
+    hm_clean = (hm - datahat) + hm_mean
+
+    np.savetxt(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_movement_detrend.par"), hm_clean)
+
+    return settings
+
+
 
 def run_func_preprocess(subject, settings, run_number):
     # Make run number into string
-    run_number = str(run_number).zfill(2)
+    run_number = f'{run_number:02d}'
 
     # Ensure the TR value is set
     if not settings['bold_TR']:
         settings = tr_from_json(subject, settings, run_number)
 
     # Prepare the image for preprocessing
-    nonsteady_vols = initiate_preprocessed_image(subject, settings, run_number)
+    settings = initiate_preprocessed_image(subject, settings, run_number)
 
     # Create the bold reference image
     if settings['bold_reference_type'] == 'nonsteady':
-        nonsteady_reference(subject, settings, nonsteady_vols, run_number)
+        nonsteady_reference(subject, settings, settings['number_nonsteady_vols'], run_number)
     elif settings['bold_reference_type'] == 'median':
         median_reference(subject, settings, run_number)
     elif settings['bold_reference_type'] == 'external':
@@ -293,3 +333,8 @@ def run_func_preprocess(subject, settings, run_number):
 
     # Zero values outside of brain
     apply_brain_mask(subject, settings, run_number)
+
+    # Detrend data
+    settings = detrend_data(subject, settings, run_number)
+
+    # Smooth data
