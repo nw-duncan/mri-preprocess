@@ -15,7 +15,7 @@ from templateflow import api as tflow
 def initiate_settings():
     settings = dict(root_dir="",
                     output_dir_name="",
-                    number_of_sessions=None,
+                    session_number=None,
                     num_threads=1,
                     process_anat=True,
                     process_func=True,
@@ -153,13 +153,13 @@ def create_output_dirs(subject, settings):
 
 
 def define_directories(subject, settings):
-    if settings['number_of_sessions']:
-        # We set it to the first session here - change the session name elsewhere
-        anat_in = path.join(settings['root_dir'], 'rawdata', subject, 'ses-01', 'anat')
-        func_in = path.join(settings['root_dir'], 'rawdata', subject, 'ses-01', 'func')
+    if settings['session_number']:
+        # We set the session number in the directory here
+        anat_in = path.join(settings['root_dir'], 'rawdata', subject, f"ses-{settings['session_number']:02d}", 'anat')
+        func_in = path.join(settings['root_dir'], 'rawdata', subject, f"ses-{settings['session_number']:02d}", 'func')
 
-        anat_out = path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'ses-01', 'anat')
-        func_out = path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'ses-01', 'func')
+        anat_out = path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'anat')
+        func_out = path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'func')
 
     else:
         anat_in = path.join(settings['root_dir'], 'rawdata', subject, 'anat')
