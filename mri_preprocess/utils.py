@@ -89,15 +89,14 @@ def create_output_dirs(subject, settings):
         # Create subject output directory
         mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject))
         # If there are sessions
-        if settings['number_of_sessions']:
-            for ses in np.arange(1, settings['number_of_sessions']+1):
-                # Create session output directory
-                mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f'ses-{str(ses).zfill(2)}'))
-                # Create modality sepcific directories
-                if settings['process_anat']:
-                    mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f'ses-{str(ses).zfill(2)}', 'anat'))
-                if settings['process_func']:
-                    mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f'ses-{str(ses).zfill(2)}', 'func'))
+        if settings['session_number']:
+            # Create session output directory
+            mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}"))
+            # Create modality sepcific directories
+            if settings['process_anat']:
+                mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'anat'))
+            if settings['process_func']:
+                mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'func'))
             return
             # If there are no sessions
         if settings['process_anat']:
@@ -117,27 +116,26 @@ def create_output_dirs(subject, settings):
         mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject))
     else:
         print('Subject output directory already exists. Not overwriting.')
-    if settings['number_of_sessions']:
-        for ses in np.arange(1, settings['number_of_sessions'] + 1):
-            if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f'ses-{str(ses).zfill(2)}')):
-                mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f'ses-{str(ses).zfill(2)}'))
+    if settings['session_number']:
+        if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}")):
+            mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}"))
+        else:
+            print('Session directory already exists. Not overwriting.')
+        # Create anatomical output directory
+        if settings['process_anat']:
+            if not path.isdir(
+                    path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'anat')):
+                mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'anat'))
             else:
-                print('Session directory already exists. Not overwriting.')
-            # Create anatomical output directory
-            if settings['process_anat']:
-                if not path.isdir(
-                        path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f'ses-{str(ses).zfill(2)}', 'anat')):
-                    mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f'ses-{str(ses).zfill(2)}', 'anat'))
-                else:
-                    print('Anatomical output directory already exists. Not overwriting')
-            # Create functional output directory
-            if settings['process_func']:
-                if not path.isdir(
-                        path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f'ses-{str(ses).zfill(2)}', 'func')):
-                    mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f'ses-{str(ses).zfill(2)}', 'func'))
-                else:
-                    print('Functional output directory already exists. Not overwriting')
-        return
+                print('Anatomical output directory already exists. Not overwriting')
+        # Create functional output directory
+        if settings['process_func']:
+            if not path.isdir(
+                    path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'func')):
+                mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'func'))
+            else:
+                print('Functional output directory already exists. Not overwriting')
+    return
     # Create anatomical output directory
     if settings['process_anat']:
         if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'anat')):
