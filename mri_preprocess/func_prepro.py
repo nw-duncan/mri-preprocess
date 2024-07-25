@@ -11,6 +11,7 @@ import os
 import subprocess
 import nibabel as nib
 import numpy as np
+import pandas as pd
 from nipype.interfaces import fsl, afni
 from nipype.algorithms.confounds import NonSteadyStateDetector, ComputeDVARS, FramewiseDisplacement
 from os import path
@@ -328,6 +329,49 @@ def detrend_data(subject, settings, run_number):
 
     np.savetxt(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_movement_detrend.par"), hm_clean)
 
+    # Save polynomial regressors and detrended head motion
+    tcs_df = pd.DataFrame()
+
+    for ii in range(regressors.shape[1]):
+        tcs_df[f'polynomial_deg_{ii}'] = regressors[:, ii]
+
+    for ii, par in enumerate(['rotation_x', 'rotation_y', 'rotation_z', 'translation_x', 'translation_y', 'translation_z']):
+        tcs_df[par] = hm_clean[:, ii]
+
+    tcs_df.to_csv(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_features.csv"),
+                  index=False)
+
+
+def extract_confound_tcs(subject, settings, run_number):
+    tcs_df = pd.read_csv(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_features.csv"))
+    for tissue in ['gm', 'wm', 'csf']:
+        # Mean time series
+        temp = subprocess.run(['fslmeants',
+                               '-i',
+                               path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
+                               '-m',
+                               path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_{tissue}-mask.nii.gz")],
+                              stdout=subprocess.PIPE)
+        tcs = temp.stdout.decode().split()
+        tcs_df[f'{tissue}_mean'] = np.array(tcs).astype(float)
+
+        # First three eigenvariates
+        temp = subprocess.run(['fslmeants',
+                               '-i',
+                               path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
+                               '-m',
+                               path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_{tissue}-mask.nii.gz"),
+                               '--eig',
+                               '--order=3'],
+                              stdout=subprocess.PIPE)
+        tcs = temp.stdout.decode().split()
+        tcs = np.reshape(tcs, (settings['number_usable_vols'], 3))
+        for ii in range(3):
+            tcs_df[f'{tissue}_eig_{ii+1}'] = np.array(tcs[:, ii]).astype(float)
+
+    tcs_df.to_csv(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_features.csv"),
+                  index=False)
+
 
 def smooth_data(subject, settings, run_number, melodic_smooth=False):
 
@@ -428,9 +472,11 @@ def run_func_preprocess(subject, settings, run_number):
     # Zero values outside of brain
     apply_brain_mask(subject, settings, run_number)
 
-    # Detrend data - default is to do
-    if settings['detrend_functional']:
-        detrend_data(subject, settings, run_number)
+    # Detrend data
+    detrend_data(subject, settings, run_number)
+
+    # Get standard confound time series
+    extract_confound_tcs(subject, settings, run_number)
 
     # Smooth data - default is to not do
     if settings['smoothing_fwhm']:

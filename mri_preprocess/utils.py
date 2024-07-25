@@ -32,7 +32,6 @@ def initiate_settings():
                     slice_time_ref=0.5,
                     slice_encoding_direction='k',
                     slice_order=None,
-                    detrend_functional=True,
                     detrend_degree=3,
                     number_nonsteady_vols=None,
                     number_usable_vols=None,
