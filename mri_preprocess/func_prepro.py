@@ -114,30 +114,31 @@ def median_reference(subject, settings, run_number):
     os.remove(path.join(settings['func_out'], 'temp-bold.nii.gz'))
 
 
-def create_wmseg(subject, settings):
-    if not path.isfile(path.join(settings['anat_out'], f'{subject}_wmseg.nii.gz')):
-        # Threshold white matter probability at 50% and make binary mask
-        thresh = fsl.Threshold(in_file=path.join(settings['anat_out'], f'{subject}_T1w_brain_pve_2.nii.gz'),
-                      thresh=0.5,
-                      out_file=path.join(settings['anat_out'], f'{subject}_wmseg.nii.gz'))
-        thresh.run()
-        binarise = fsl.UnaryMaths(in_file=path.join(settings['anat_out'], f'{subject}_wmseg.nii.gz'),
-                                  operation='bin',
-                                  out_file=path.join(settings['anat_out'], f'{subject}_wmseg.nii.gz'))
-        binarise.run()
-    if not path.isfile(path.join(settings['anat_out'], f'{subject}_wmedge.nii.gz')):
-        subprocess.run(['fslmaths',
-                        path.join(settings['anat_out'], f'{subject}_wmseg.nii.gz'),
-                        '-edge',
-                        '-bin',
-                        '-mas',
-                        path.join(settings['anat_out'], f'{subject}_wmseg.nii.gz'),
-                        path.join(settings['anat_out'], f'{subject}_wm-edge.nii.gz')])
+def create_tissue_masks(subject, settings):
+    for pve, tissue in enumerate(['csf', 'gm', 'wm']):
+        if not path.isfile(path.join(settings['anat_out'], f'{subject}_{tissue}seg.nii.gz')):
+            # Threshold white matter probability at 50% and make binary mask
+            thresh = fsl.Threshold(in_file=path.join(settings['anat_out'], f'{subject}_T1w_brain_pve_{pve}.nii.gz'),
+                          thresh=0.5,
+                          out_file=path.join(settings['anat_out'], f'{subject}_{tissue}-mask.nii.gz'))
+            thresh.run()
+            binarise = fsl.UnaryMaths(in_file=path.join(settings['anat_out'], f'{subject}_{tissue}-mask.nii.gz'),
+                                      operation='bin',
+                                      out_file=path.join(settings['anat_out'], f'{subject}_{tissue}-mask.nii.gz'))
+            binarise.run()
+        if not path.isfile(path.join(settings['anat_out'], f'{subject}_{tissue}-edge.nii.gz')):
+            subprocess.run(['fslmaths',
+                            path.join(settings['anat_out'], f'{subject}_{tissue}-mask.nii.gz'),
+                            '-edge',
+                            '-bin',
+                            '-mas',
+                            path.join(settings['anat_out'], f'{subject}_{tissue}-mask.nii.gz'),
+                            path.join(settings['anat_out'], f'{subject}_{tissue}-edge.nii.gz')])
 
 
 def align_to_anatomical(subject, settings, run_number):
     # Create the white matter segmenation needed for BBR
-    create_wmseg(subject, settings)
+    create_tissue_masks(subject, settings)
 
     # Do initial alignment
     flirt = fsl.FLIRT(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"),
@@ -155,7 +156,7 @@ def align_to_anatomical(subject, settings, run_number):
                       reference=path.join(settings['anat_out'], f'{subject}_T1w_brain.nii.gz'),
                       in_matrix_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold2anat_init.mat"),
                       cost='bbr',
-                      wm_seg=path.join(settings['anat_out'], f'{subject}_wmseg.nii.gz'),
+                      wm_seg=path.join(settings['anat_out'], f'{subject}_wm-mask.nii.gz'),
                       dof=6,
                       schedule=os.environ['FSLDIR'] + '/etc/flirtsch/bbr.sch',
                       out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference_anat-space.nii.gz"),
@@ -166,6 +167,33 @@ def align_to_anatomical(subject, settings, run_number):
     invert = fsl.ConvertXFM(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold2anat.mat"),
                             invert_xfm=True,
                             out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_anat2bold.mat"))
+    invert.run()
+
+def anat_to_func(subject, settings, run_number):
+    # T1w image to functional space
+    flirt = fsl.FLIRT(in_file=path.join(settings['anat_out'], f'{subject}_T1w_brain.nii.gz'),
+                      reference=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"),
+                      in_matrix_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_anat2bold.mat"),
+                      apply_xfm=True,
+                      interp='trilinear',
+                      out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_T1w_brain.nii.gz"))
+    flirt.run()
+
+    # Tissue masks
+    flirt.inputs.interp = 'nearestneighbour'
+    for tissue in ['wm', 'csf', 'gm']:
+        flirt.inputs.in_file = path.join(settings['anat_out'], f'{subject}_{tissue}-mask.nii.gz')
+        flirt.inputs.out_file = path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_{tissue}-mask.nii.gz")
+        flirt.run()
+
+    # Erode masks
+    erode = fsl.ErodeImage(kernel_shape='boxv',
+                           kernel_size=3,
+                           nan2zeros=True)
+    for tissue in ['wm', 'csf', 'gm']:
+        erode.inputs.in_file = path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_{tissue}-mask.nii.gz")
+        erode.inputs.out_file = path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_{tissue}-mask-erode.nii.gz")
+        erode.run()
 
 
 def estimate_head_motion(subject, settings, run_number):
@@ -301,7 +329,6 @@ def detrend_data(subject, settings, run_number):
     np.savetxt(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_movement_detrend.par"), hm_clean)
 
 
-
 def smooth_data(subject, settings, run_number, melodic_smooth=False):
 
     # Calculate brightness threshold
@@ -319,25 +346,42 @@ def smooth_data(subject, settings, run_number, melodic_smooth=False):
     # Do smoothing
     smooth = fsl.SUSAN(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
                        dimension=3,
-                       brightness_threshold=brightness_threshold)
+                       brightness_threshold=brightness_threshold,
+                       fwhm=5.0,
+                       smoothed_file=path.join(settings['func_out'], 'temp.nii.gz'))
 
     if melodic_smooth:
-        smooth.inputs.fwhm=5,
+        smooth.inputs.fwhm=float(5),
         smooth.inputs.smoothed_file=path.join(settings['func_out'], 'temp.nii.gz')
     else:
         smooth.inputs.fwhm=settings['smoothing_fwhm']
-        smooth.inputs.smoothed_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc_smooth-{settings['smoothing_fwhm']}mm.nii.gz"))
+        smooth.inputs.smoothed_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc_smooth-{settings['smoothing_fwhm']}mm.nii.gz")
 
     smooth.run()
+
+    # Clean up voxels outside brain
+    mask_img = fsl.ApplyMask(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc_smooth-{settings['smoothing_fwhm']}mm.nii.gz"),
+                             mask_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_brain-mask.nii.gz"),
+                             out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc_smooth-{settings['smoothing_fwhm']}mm.nii.gz"))
+    mask_img.run()
 
 def run_melodic_ica(subject, settings, run_number):
     #  Apply some smoothing to the input image
     smooth_data(subject, settings, run_number, melodic_smooth=True)
 
+    # Run MELODIC
+    melodic = fsl.MELODIC(in_files=path.join(settings['func_out'], 'temp.nii.gz'),
+                          approach='tica',
+                          bg_image=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"),
+                          mask=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_brain-mask.nii.gz"),
+                          tr_sec=settings['bold_TR'],
+                          no_bet=True,
+                          report=True,
+                          out_dir=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}.ica"))
+    melodic.run()
 
     # Clean up the temporary smoothed image
     os.remove(path.join(settings['func_out'], 'temp.nii.gz'))
-
 
 
 def run_func_preprocess(subject, settings, run_number):
@@ -361,6 +405,7 @@ def run_func_preprocess(subject, settings, run_number):
 
     # Align reference to anatomical
     align_to_anatomical(subject, settings, run_number)
+    anat_to_func(subject, settings, run_number)
 
     # Estimate head motion
     estimate_head_motion(subject, settings, run_number)
@@ -374,8 +419,10 @@ def run_func_preprocess(subject, settings, run_number):
     # Zero values outside of brain
     apply_brain_mask(subject, settings, run_number)
 
-    # Detrend data
+    # Detrend data - optional
     if settings['detrend_functional']:
         detrend_data(subject, settings, run_number)
 
-    # Smooth data
+    # Smooth data - optional
+    if settings['smoothing_fwhm']:
+        smooth_data(subject, settings, run_number)

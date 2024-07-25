@@ -36,7 +36,6 @@ def initiate_settings():
                     detrend_degree=3,
                     number_nonsteady_vols=None,
                     number_usable_vols=None,
-                    smooth_functional=False,
                     smoothing_fwhm=None,
                     run_melodic_ica=False,
                     ants_reg_params={"transforms": ["Affine", "SyN"],
