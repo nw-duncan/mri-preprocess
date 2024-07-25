@@ -176,7 +176,7 @@ def anat_to_func(subject, settings, run_number):
                       in_matrix_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_anat2bold.mat"),
                       apply_xfm=True,
                       interp='trilinear',
-                      out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_T1w_brain.nii.gz"))
+                      out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_T1w-brain.nii.gz"))
     flirt.run()
 
     # Tissue masks
@@ -344,26 +344,35 @@ def smooth_data(subject, settings, run_number, melodic_smooth=False):
     brightness_threshold = 0.75 * img_median
 
     # Do smoothing
-    smooth = fsl.SUSAN(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
-                       dimension=3,
-                       brightness_threshold=brightness_threshold,
-                       fwhm=5.0,
-                       smoothed_file=path.join(settings['func_out'], 'temp.nii.gz'))
-
     if melodic_smooth:
-        smooth.inputs.fwhm=float(5),
-        smooth.inputs.smoothed_file=path.join(settings['func_out'], 'temp.nii.gz')
+        cmd = ['susan',
+               path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
+               str(brightness_threshold),
+               str(5 / np.sqrt(8 * np.log(2))),
+               str(3),
+               str(0),
+               str(0),
+               path.join(settings['func_out'], "temp.nii.gz")]
+
+        subprocess.run(cmd)
+
     else:
-        smooth.inputs.fwhm=settings['smoothing_fwhm']
-        smooth.inputs.smoothed_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc_smooth-{settings['smoothing_fwhm']}mm.nii.gz")
+        cmd = ['susan',
+               path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
+               str(brightness_threshold),
+               str(settings['smoothing_fwhm'] / np.sqrt(8 * np.log(2))),
+               str(3),
+               str(0),
+               str(0),
+               path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc_smooth-{settings['smoothing_fwhm']}mm.nii.gz")]
 
-    smooth.run()
+        subprocess.run(cmd)
 
-    # Clean up voxels outside brain
-    mask_img = fsl.ApplyMask(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc_smooth-{settings['smoothing_fwhm']}mm.nii.gz"),
-                             mask_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_brain-mask.nii.gz"),
-                             out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc_smooth-{settings['smoothing_fwhm']}mm.nii.gz"))
-    mask_img.run()
+        # Clean up voxels outside brain
+        mask_img = fsl.ApplyMask(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc_smooth-{settings['smoothing_fwhm']}mm.nii.gz"),
+                                 mask_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_brain-mask.nii.gz"),
+                                 out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc_smooth-{settings['smoothing_fwhm']}mm.nii.gz"))
+        mask_img.run()
 
 def run_melodic_ica(subject, settings, run_number):
     #  Apply some smoothing to the input image
@@ -372,7 +381,7 @@ def run_melodic_ica(subject, settings, run_number):
     # Run MELODIC
     melodic = fsl.MELODIC(in_files=path.join(settings['func_out'], 'temp.nii.gz'),
                           approach='tica',
-                          bg_image=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"),
+                          bg_image=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_T1w-brain.nii.gz"),
                           mask=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_brain-mask.nii.gz"),
                           tr_sec=settings['bold_TR'],
                           no_bet=True,
@@ -419,10 +428,15 @@ def run_func_preprocess(subject, settings, run_number):
     # Zero values outside of brain
     apply_brain_mask(subject, settings, run_number)
 
-    # Detrend data - optional
+    # Detrend data - default is to do
     if settings['detrend_functional']:
         detrend_data(subject, settings, run_number)
 
-    # Smooth data - optional
+    # Smooth data - default is to not do
     if settings['smoothing_fwhm']:
         smooth_data(subject, settings, run_number)
+
+    # Run MELODIC for FIX denoising - default is to not do
+    if settings['run_melodic_ica']:
+        run_melodic_ica(subject, settings, run_number)
+

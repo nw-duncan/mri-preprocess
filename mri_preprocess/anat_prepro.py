@@ -160,17 +160,17 @@ def tissue_segment(subject, settings):
     fast.run()
     
 def run_anat_preprocess(subject, settings):
-        # Reorient image to standard
-        reorient_t1_to_standard(subject, settings)
-        # Reduce field of view
-        reduce_fov(subject, settings)
-        # Biasfield correct image
-        create_rough_mask(subject, settings)
-        bias_correct(subject, settings)
-        # Align to template
-        align_to_template(subject, settings)
-        # Brain extraction
-        brain_extract(subject, settings)
-        # Tissue segmentation
-        tissue_segment(subject, settings)
+    # Reorient image to standard
+    reorient_t1_to_standard(subject, settings)
+    # Reduce field of view
+    reduce_fov(subject, settings)
+    # Biasfield correct image
+    create_rough_mask(subject, settings)
+    bias_correct(subject, settings)
+    # Align to template
+    align_to_template(subject, settings)
+    # Brain extraction
+    brain_extract(subject, settings)
+    # Tissue segmentation
+    tissue_segment(subject, settings)
 
