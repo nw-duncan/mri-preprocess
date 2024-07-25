@@ -63,11 +63,14 @@ def initiate_preprocessed_image(subject, settings, run_number):
              path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
     # Detect non-steady state volumes
     settings['number_nonsteady_vols'] = detect_nonsteady(subject, settings, run_number)
+    # Initiate number of usable volumes
+    in_img = nib.load(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
+    settings['number_usable_vols'] = in_img.shape[-1]
     # Remove any non-steady volumes if required
     if settings['drop_nonsteady_vols']:
-        in_img = nib.load(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
         out_img = nib.Nifti1Image(in_img.get_fdata()[:, :, :, settings['number_nonsteady_vols']], in_img.affine)
         out_img.to_filename(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
+        settings['number_usable_vols'] = settings['number_usable_vols'] - settings['number_nonsteady_vols']
     # Reorient to standard
     reorient_bold_to_standard(subject, settings, run_number)
     # Brain extract
@@ -262,7 +265,6 @@ def apply_brain_mask(subject, settings, run_number):
 def detrend_data(subject, settings, run_number):
     # Load in functional data
     in_img = nib.load(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
-    settings['number_usable_vols'] = in_img.shape[-1]
     mask_img = nib.load(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_brain-mask.nii.gz")).get_fdata()
     tcs = in_img.get_fdata()[mask_img == 1]
     tcs_mean = np.nanmean(tcs, axis=-1, keepdims=True)
@@ -273,6 +275,8 @@ def detrend_data(subject, settings, run_number):
         polynomial_func = np.polynomial.Legendre.basis(i + 1)
         value_array = np.linspace(-1, 1, settings['number_usable_vols'])
         regressors = np.hstack((regressors, polynomial_func(value_array)[:, np.newaxis]))
+
+    np.savetxt(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_poly-detrend.csv"), regressors, delimiter=',')
 
     # Remove from data
     betas = np.linalg.pinv(regressors).dot(tcs.T)
@@ -296,7 +300,43 @@ def detrend_data(subject, settings, run_number):
 
     np.savetxt(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_movement_detrend.par"), hm_clean)
 
-    return settings
+
+
+def smooth_data(subject, settings, run_number, melodic_smooth=False):
+
+    # Calculate brightness threshold
+    temp = subprocess.run(['fslstats',
+                           path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
+                           '-k',
+                           path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_brain-mask.nii.gz"),
+                           '-p',
+                           '50'],
+                          stdout=subprocess.PIPE)
+    img_median = float(temp.stdout.decode())
+
+    brightness_threshold = 0.75 * img_median
+
+    # Do smoothing
+    smooth = fsl.SUSAN(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
+                       dimension=3,
+                       brightness_threshold=brightness_threshold)
+
+    if melodic_smooth:
+        smooth.inputs.fwhm=5,
+        smooth.inputs.smoothed_file=path.join(settings['func_out'], 'temp.nii.gz')
+    else:
+        smooth.inputs.fwhm=settings['smoothing_fwhm']
+        smooth.inputs.smoothed_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc_smooth-{settings['smoothing_fwhm']}mm.nii.gz"))
+
+    smooth.run()
+
+def run_melodic_ica(subject, settings, run_number):
+    #  Apply some smoothing to the input image
+    smooth_data(subject, settings, run_number, melodic_smooth=True)
+
+
+    # Clean up the temporary smoothed image
+    os.remove(path.join(settings['func_out'], 'temp.nii.gz'))
 
 
 
@@ -335,6 +375,7 @@ def run_func_preprocess(subject, settings, run_number):
     apply_brain_mask(subject, settings, run_number)
 
     # Detrend data
-    settings = detrend_data(subject, settings, run_number)
+    if settings['detrend_functional']:
+        detrend_data(subject, settings, run_number)
 
     # Smooth data
