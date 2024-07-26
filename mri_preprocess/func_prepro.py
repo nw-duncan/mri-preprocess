@@ -406,6 +406,27 @@ def anat_to_func(subject, settings, run_number):
         erode.run()
 
 
+def calc_dvars(in_file, out_file):
+    """
+    Create time series showing volumes that are likely corrupted by artifacts.
+
+    Based on Tom Nichols' approach and the original Power (2012) paper.
+
+    https://warwick.ac.uk/fac/sci/statistics/staff/academic-research/nichols/scripts/fsl/StandardizedDVARS.pdf
+
+    Parameters
+    ----------
+    in_file: str
+            Path to functional image
+    out_file: str
+            Path for output file
+
+    Returns
+    -------
+
+    """
+
+
 def estimate_head_motion(subject, settings, run_number):
     """
     Estimates head motion from volume realignment parameters. This is done on the original data that has not had slice
