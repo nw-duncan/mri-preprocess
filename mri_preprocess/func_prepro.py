@@ -18,6 +18,23 @@ from os import path
 from shutil import copyfile, move
 
 def tr_from_json(subject, settings, run_number):
+    """
+    Updates the TR for the run based on the value from the sidecar json file (where available).
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+    run_number: int
+            Run number
+
+    Returns
+    -------
+    Updated settings object (dict)
+
+    """
     with open(path.join(settings['func_in'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold.json"), 'r') as json_file:
         temp = json.load(json_file)
     settings['bold_TR'] = temp['RepetitionTime']
@@ -25,6 +42,23 @@ def tr_from_json(subject, settings, run_number):
 
 
 def reorient_bold_to_standard(subject, settings, run_number):
+    """
+    Rearanges the functional data so that it follows the standard orientation used by FSL.
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+    run_number: int
+            Run number
+
+    Returns
+    -------
+    None
+
+    """
     in_file = path.join(settings['func_in'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold.nii.gz")
     out_root = path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_")
     # Calculate the transform between original orientation and standard orientation
@@ -42,6 +76,24 @@ def reorient_bold_to_standard(subject, settings, run_number):
 
 
 def detect_nonsteady(subject, settings, run_number):
+    """
+    Identifies non-steady state volumes at the start of the functional data.
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+    run_number: int
+            Run number
+
+    Returns
+    -------
+
+    The number of non-steady volumes (int)
+
+    """
     steady = NonSteadyStateDetector(in_file=path.join(settings['func_in'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold.nii.gz"))
     temp = steady.run()
     n_vols = str(temp.outputs)
@@ -49,6 +101,25 @@ def detect_nonsteady(subject, settings, run_number):
     return int(n_vols)
 
 def brain_extract_bold(subject, settings, run_number):
+    """
+    Runs brain extraction on functional data using BET.
+
+    A brain mask is produced as well as the brain extracted data.
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+    run_number: int
+            Run number
+
+    Returns
+    -------
+    None
+
+    """
     bet = fsl.BET(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
                   functional=True,
                   mask=True,
@@ -59,6 +130,31 @@ def brain_extract_bold(subject, settings, run_number):
          path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_brain-mask.nii.gz"))
 
 def initiate_preprocessed_image(subject, settings, run_number):
+    """
+    Creates the output preprocessed functional image.
+
+    Will remove any non-steady volumes from this if required. The settings object is updated with the number of such
+    volumes and with the number of usable volumes.
+
+    Image is reoriented to the FSL standard arrangement.
+
+    Finally, brain extraction is applied to the data through BET.
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+    run_number: int
+            Run number
+
+    Returns
+    -------
+    Updated settings object (dict)
+
+    """
+    Updated settings object (dict)
     # Create a copy of the BOLD input image.
     copyfile(path.join(settings['func_in'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold.nii.gz"),
              path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
@@ -79,23 +175,77 @@ def initiate_preprocessed_image(subject, settings, run_number):
     return settings
 
 def nonsteady_reference(subject, settings, n_vols, run_number):
+    """
+    Creates the functional data reference image by averaging the non-steady volumes.
 
-        in_img = nib.load(path.join(settings['func_in'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold.nii.gz"))
-        if n_vols == 1:
-            in_data = in_img.get_fdata()[:, :, :, 0]
-            out_img = nib.Nifti1Image(in_data, in_img.affine)
-        elif n_vols > 1:
-            in_data = in_img.get_fdata()[:, :, :, 0:n_vols]
-            out_img = nib.Nifti1Image(np.mean(in_data, axis=-1), in_img.affine)
-        out_img.to_filename(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"))
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+    n_vols: int
+            How many non-steady volumes there are.
+    run_number: int
+            Run number
+
+    Returns
+    -------
+    None
+
+    """
+    in_img = nib.load(path.join(settings['func_in'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold.nii.gz"))
+    if n_vols == 1:
+        in_data = in_img.get_fdata()[:, :, :, 0]
+        out_img = nib.Nifti1Image(in_data, in_img.affine)
+    elif n_vols > 1:
+        in_data = in_img.get_fdata()[:, :, :, 0:n_vols]
+        out_img = nib.Nifti1Image(np.mean(in_data, axis=-1), in_img.affine)
+    out_img.to_filename(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"))
 
 
 def external_reference(subject, settings, run_number):
+    """
+    Renames a specified functional reference image to fit with the naming convention of this tool.
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+    run_number: int
+            Run number
+
+    Returns
+    -------
+    None
+
+    """
     copyfile(path.join(settings['func_in'], f"{subject}_task-{settings['task_name']}_run-{run_number}_{settings['reference_file']}.nii.gz"),
              path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"))
 
 
 def median_reference(subject, settings, run_number):
+    """
+    Create a functional reference image by taking the temporal median of the data.
+
+    First does volume realignment, then calculates the median.
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+    run_number: int
+            Run number
+
+    Returns
+    -------
+    None
+
+    """
     # Do an initial alignment of the image volumes
     mcflirt = fsl.MCFLIRT(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
                           dof=6,
@@ -116,8 +266,27 @@ def median_reference(subject, settings, run_number):
 
 
 def create_tissue_masks(subject, settings):
+    """
+    Creates masks for grey matter, white matter, and CSF in from the anatomical data.
+
+    Note that these are in the anatomical space - BBR looks for the white matter one.
+
+    Skips if the files already exist.
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+
+    Returns
+    -------
+    None
+
+    """
     for pve, tissue in enumerate(['csf', 'gm', 'wm']):
-        if not path.isfile(path.join(settings['anat_out'], f'{subject}_{tissue}seg.nii.gz')):
+        if not path.isfile(path.join(settings['anat_out'], f'{subject}_{tissue}-mask.nii.gz')):
             # Threshold white matter probability at 50% and make binary mask
             thresh = fsl.Threshold(in_file=path.join(settings['anat_out'], f'{subject}_T1w_brain_pve_{pve}.nii.gz'),
                           thresh=0.5,
@@ -138,6 +307,26 @@ def create_tissue_masks(subject, settings):
 
 
 def align_to_anatomical(subject, settings, run_number):
+    """
+    Runs BBR alignment between functional and anatomical images in FLIRT.
+
+    Also produces inverse transforms from anatomical to functional.
+
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+    run_number: int
+            Run number
+
+    Returns
+    -------
+    None
+
+    """
     # Create the white matter segmenation needed for BBR
     create_tissue_masks(subject, settings)
 
@@ -171,6 +360,26 @@ def align_to_anatomical(subject, settings, run_number):
     invert.run()
 
 def anat_to_func(subject, settings, run_number):
+    """
+    Puts the brain extracted anatomical image into functional space. Useful as a background image for
+    visualising data in functional space.
+
+    Also puts tissue masks into functional space. Eroded versions of these are made with a three voxel cube kernel.
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+    run_number: int
+            Run number
+
+    Returns
+    -------
+    None
+
+    """
     # T1w image to functional space
     flirt = fsl.FLIRT(in_file=path.join(settings['anat_out'], f'{subject}_T1w_brain.nii.gz'),
                       reference=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"),
@@ -198,6 +407,26 @@ def anat_to_func(subject, settings, run_number):
 
 
 def estimate_head_motion(subject, settings, run_number):
+    """
+    Estimates head motion from volume realignment parameters. This is done on the original data that has not had slice
+    time correction applied.
+
+    DVARs and framewise displacement are calculated and saved as text files.
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+    run_number: int
+            Run number
+
+    Returns
+    -------
+    None
+
+    """
     mcflirt = fsl.MCFLIRT(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
                           ref_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"),
                           dof=6,
@@ -237,7 +466,26 @@ def estimate_head_motion(subject, settings, run_number):
     framewise.run()
 
 def slicetime_correct(subject, settings, run_number):
+    """
+    Run slice time correction with AFNI Tshift.
 
+    At the moment it's just working for data that has the BIDS json sidecar. Need to add functionality for
+    data missing this...
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+    run_number: int
+            Run number
+
+    Returns
+    -------
+    None
+
+    """
     if path.isfile(path.join(settings['func_in'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold.json")):
         with open(path.join(settings['func_in'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold.json"), 'r') as json_file:
             temp = json.load(json_file)
@@ -271,6 +519,25 @@ def slicetime_correct(subject, settings, run_number):
 
 
 def volume_realign(subject, settings, run_number):
+    """
+    Runs volume realingment on slice time corrected data.
+
+    Note that the head motion parameters are not calculated from this step.
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+    run_number: int
+            Run number
+
+    Returns
+    -------
+    None
+
+    """
     mcflirt = fsl.MCFLIRT(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
                           ref_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"),
                           dof=6,
@@ -284,7 +551,23 @@ def volume_realign(subject, settings, run_number):
 
 
 def apply_brain_mask(subject, settings, run_number):
+    """
+    General function to apply the previously calculated brain mask to functional data.
 
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+    run_number: int
+            Run number
+
+    Returns
+    -------
+    None
+
+    """
     mask_img = fsl.ApplyMask(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
                              mask_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_brain-mask.nii.gz"),
                              out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
@@ -292,6 +575,29 @@ def apply_brain_mask(subject, settings, run_number):
     mask_img.run()
 
 def detrend_data(subject, settings, run_number):
+    """
+    Do polynomial detrending of data. The default polynomial degrees to do are up to the third. This can be changed by
+    the user.
+
+    Polynomial regressors are saved in the data features dataframe.
+
+    Head motion parameters have the same detrending applied to them. This detrended version of these are stored in the
+    features dataframe so that they match the functional data.
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+    run_number: int
+            Run number
+
+    Returns
+    -------
+    None
+
+    """
     # Load in functional data
     in_img = nib.load(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
     mask_img = nib.load(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_brain-mask.nii.gz")).get_fdata()
@@ -343,6 +649,25 @@ def detrend_data(subject, settings, run_number):
 
 
 def extract_confound_tcs(subject, settings, run_number):
+    """
+    Get mean time series, plus the first three eigenvariates, from the grey matter, white matter, and CSF.
+
+    These are stored in the data feature dataframe.
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+    run_number: int
+            Run number
+
+    Returns
+    -------
+    None
+
+    """
     tcs_df = pd.read_csv(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_features.csv"))
     for tissue in ['gm', 'wm', 'csf']:
         # Mean time series
@@ -374,7 +699,30 @@ def extract_confound_tcs(subject, settings, run_number):
 
 
 def smooth_data(subject, settings, run_number, melodic_smooth=False):
+    """
+    Applies spatial smoothing to functional data.
 
+    Smoothing kernel size is set by the user.
+
+    In the special case where smoothing is being done prior to running MELODIC, a set kernel of 5mm is used and
+    a temporary file is created.
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+    run_number: int
+            Run number
+    melodic_smooth: Bool
+            Whether or not to apply spatial smoothing to the data before running MELODIC
+
+    Returns
+    -------
+    None
+
+    """
     # Calculate brightness threshold
     temp = subprocess.run(['fslstats',
                            path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
@@ -419,6 +767,25 @@ def smooth_data(subject, settings, run_number, melodic_smooth=False):
         mask_img.run()
 
 def run_melodic_ica(subject, settings, run_number):
+    """
+    Runs MELODIC ICA on the data for FIX denoising.
+
+    The data is smoothed before this is run, even if smoothing is not requested by the user.
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+    run_number: int
+            Run number
+
+    Returns
+    -------
+    None
+
+    """
     #  Apply some smoothing to the input image
     smooth_data(subject, settings, run_number, melodic_smooth=True)
 
@@ -438,6 +805,24 @@ def run_melodic_ica(subject, settings, run_number):
 
 
 def run_func_preprocess(subject, settings, run_number):
+    """
+    Run through all steps of functional preprocessing.
+
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+    run_number: int
+            Run number
+
+    Returns
+    -------
+    None
+
+    """
     # Make run number into string
     run_number = f'{run_number:02d}'
 
