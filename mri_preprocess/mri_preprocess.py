@@ -39,13 +39,16 @@ def mri_preprocess(subject, settings_file):
     ######################################################
     
     if settings['process_func']:
-        # Run multiple runs simultaneously
-        if settings['process_multi_runs']:
-            settings = utils.check_thread_no(settings)
-            Parallel(n_jobs=settings['number_func_runs'], verbose=0)(delayed(run_func_preprocess)(subject, settings, ii+1) for ii in range(settings['number_func_runs']))
+        if settings['number_of_runs'] > 1:
+            # Run multiple runs simultaneously
+            if settings['process_multi_runs']:
+                settings = utils.check_thread_no(settings)
+                Parallel(n_jobs=settings['number_of_runs'], verbose=0)(delayed(run_func_preprocess)(subject, settings, run_number) for run_number in settings['run_numbers'])
 
-        # Run multiple runs sequentially
+            # Run multiple runs sequentially
+            else:
+                for run_number in settings['run_numbers']:
+                    run_func_preprocess(subject, settings, run_number)
         else:
-            for run_number in range(settings['number_func_runs']):
-                run_number += 1
-                run_func_preprocess(subject, settings, run_number)
+            run_func_preprocess(subject, settings, settings['run_numbers'])
+

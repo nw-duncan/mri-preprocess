@@ -24,6 +24,7 @@ def initiate_settings():
                     T1_brain_extract_type="BET",
                     task_name="",
                     number_of_runs=1,
+                    run_numbers=1,
                     process_multi_runs=False,
                     bold_TR=None,
                     drop_nonsteady_vols=True,
@@ -75,6 +76,15 @@ def update_settings(settings, settings_file):
     # Check that the set number of threads isn't bigger than the number available
     if settings['num_threads'] > cpu_count():
         settings['num_threads'] = cpu_count()
+
+    # Handle run numbers for functional data
+    if type(settings['run_numbers']) is int:
+        settings['number_of_runs'] = 1
+    elif type(settings['run_numbers']) is list:
+        settings['number_of_runs'] = len(settings['run_numbers'])
+        # If there's just one run number in a list then turn it into an integer for ease of use
+        if settings['number_of_runs'] == 1:
+            settings['run_numbers'] = settings['run_numbers'][0]
 
     return settings
 
