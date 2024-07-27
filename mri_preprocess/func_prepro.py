@@ -256,7 +256,7 @@ def calc_dvars(subject, settings, run_number):
 
     # Clean up files
     for fname in ['temp', 'temp-lq', 'temp-uq', 'temp-SD', 'temp-AR', 'temp-diffSDhat',
-                  'temp-0', 'temp-1', 'temp-diffSq', 'temp-diffSqStd']:
+                  'temp-median', 'temp-0', 'temp-1', 'temp-diffSq', 'temp-diffSqStd']:
         os.remove(path.join(settings['func_out'], f'{fname}.nii.gz'))
 
 
@@ -302,6 +302,8 @@ def initiate_preprocessed_image(subject, settings, run_number):
     reorient_bold_to_standard(subject, settings, run_number)
     # Brain extract
     brain_extract_bold(subject, settings, run_number)
+    # Calculate DVARS
+    calc_dvars(subject, settings, run_number)
     return settings
 
 def nonsteady_reference(subject, settings, n_vols, run_number):

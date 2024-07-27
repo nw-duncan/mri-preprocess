@@ -18,6 +18,21 @@ from mri_preprocess import utils
 
 
 def reorient_t1_to_standard(subject, settings):
+    """
+    Rearanges the anatomical data so that it follows the standard orientation used by FSL.
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+
+    Returns
+    -------
+    None
+
+    """
     t1_file = path.join(settings['anat_in'], f'{subject}_T1w.nii.gz')
     # Make a copy of the original file for reference
     copyfile(t1_file,
@@ -38,6 +53,23 @@ def reorient_t1_to_standard(subject, settings):
     
 
 def reduce_fov(subject, settings):
+    """
+    Use FSL's robustfov to remove excess neck area from the image.
+
+    Does this with the default settings so may not be suitable for non-standard FoVs or small brains (e.g., children).
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+
+    Returns
+    -------
+    None
+
+    """
     subprocess.run(['robustfov',
                     '-i',
                     path.join(settings['anat_out'], f'{subject}_T1w_std.nii.gz'),
@@ -48,6 +80,21 @@ def reduce_fov(subject, settings):
     
     
 def create_rough_mask(subject, settings):
+    """
+    Helper function to make a temporary brain mask.
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+
+    Returns
+    -------
+    None
+
+    """
     bet = fsl.BET(in_file = path.join(settings['anat_out'], f'{subject}_T1w_std_crop.nii.gz'),
                   frac = 0.1,
                   mask = True,
@@ -58,7 +105,21 @@ def create_rough_mask(subject, settings):
     
 
 def bias_correct(subject, settings):
-    
+    """
+    Run N4 bias correction on the anatomical image.
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+
+    Returns
+    -------
+    None
+
+    """
     t1_in = path.join(settings['anat_out'], f'{subject}_T1w_std_crop.nii.gz')
     mask_in = path.join(settings['anat_out'], 'temp_brain_mask.nii.gz')
     # Set up the bias correction function
@@ -85,6 +146,21 @@ def bias_correct(subject, settings):
 
     
 def align_to_template(subject, settings):
+    """
+    Aligns the anatomical image to the relevant standard-space template with ANTs.
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+
+    Returns
+    -------
+    None
+
+    """
     # Get path to template image through templateflow
     template_path = utils.check_template_file(settings['template_name'], settings['template_resolution'], desc=None, suffix='T1w')
     # Set up registration parameters
@@ -108,6 +184,25 @@ def align_to_template(subject, settings):
 
 
 def brain_extract(subject, settings):
+    """
+    Skull strip the anatomical image and create a brain mask.
+
+    Can be done with either BET or ANTs.
+
+    If the required tissue probability templates aren't available for ANTs then it will switch to using BET.
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+
+    Returns
+    -------
+    None
+
+    """
     if settings['T1_brain_extract_type'] == 'ANTs':
         # Get the necessary template and tissue probability map 
         template_path = str(utils.check_template_file('MNI152NLin2009cAsym', 1, desc=None, suffix='T1w'))
@@ -138,7 +233,9 @@ def brain_extract(subject, settings):
             
             return
 
-    print('No tissue probability map available. Switing to BET for brain extraction.')
+        else:
+            print('No tissue probability map available. Switing to BET for brain extraction.')
+
     # Set up BET extraction
     bet_extract = fsl.BET(in_file=path.join(settings['anat_out'], f'{subject}_T1w_std_crop_biascorr.nii.gz'),
                           mask=True,
@@ -150,6 +247,21 @@ def brain_extract(subject, settings):
     
             
 def tissue_segment(subject, settings):
+    """
+    Segment the anatomical image into different tissues (grey matter, white matter, and CSF).
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+
+    Returns
+    -------
+    None
+
+    """
     fast = fsl.FAST(in_files=path.join(settings['anat_out'], f'{subject}_T1w_brain.nii.gz'),
                     img_type=1,
                     no_bias=True,
@@ -160,6 +272,21 @@ def tissue_segment(subject, settings):
     fast.run()
     
 def run_anat_preprocess(subject, settings):
+    """
+    Run each of the anatomical preprocessing steps.
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+
+    Returns
+    -------
+    None
+
+    """
     # Reorient image to standard
     reorient_t1_to_standard(subject, settings)
     # Reduce field of view
