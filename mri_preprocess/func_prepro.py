@@ -129,6 +129,137 @@ def brain_extract_bold(subject, settings, run_number):
     move(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc_mask.nii.gz"),
          path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_brain-mask.nii.gz"))
 
+
+def calc_dvars(subject, settings, run_number):
+    """
+    Create time series showing volumes that are likely corrupted by artifacts.
+
+    Run this on the data before it's slice time and head motion corrected.
+
+    Based on Tom Nichols' approach and the original Power (2012) paper.
+
+    https://warwick.ac.uk/fac/sci/statistics/staff/academic-research/nichols/scripts/fsl/StandardizedDVARS.pdf
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+    run_number: int
+            Run number
+
+    Returns
+    -------
+
+    """
+    # Standardise the image to an overall value of 1000
+    median = fsl.MedianImage(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
+                             nan2zeros=True,
+                             out_file=path.join(settings['func_out'], 'temp-median.nii.gz'))
+    median.run()
+
+    stats = fsl.ImageStats(in_file=path.join(settings['func_out'], 'temp-median.nii.gz'),
+                           mask_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_brain-mask.nii.gz"),
+                           op_string='-M')
+    img_stat = stats.run()
+    scaling_factor = 1000/img_stat.outputs.out_stat
+
+    bin_maths = fsl.BinaryMaths(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
+                                operation='mul',
+                                operand_value=scaling_factor,
+                                out_file=path.join(settings['func_out'], 'temp.nii.gz'))
+    bin_maths.run()
+
+    # Calculate robust SD
+    pct = fsl.PercentileImage(in_file=path.join(settings['func_out'], 'temp.nii.gz'),
+                              nan2zeros=True,
+                              perc=25,
+                              out_file=path.join(settings['func_out'], 'temp-lq.nii.gz'))
+    pct.run()
+
+    pct.inputs.in_file = path.join(settings['func_out'], 'temp.nii.gz')
+    pct.inputs.perc = 75
+    pct.inputs.out_file = path.join(settings['func_out'], 'temp-uq.nii.gz')
+    pct.run()
+
+    subprocess.run(['fslmaths',
+                    path.join(settings['func_out'], 'temp-uq.nii.gz'),
+                    '-sub',
+                    path.join(settings['func_out'], 'temp-lq.nii.gz'),
+                    '-div',
+                    '1.349',
+                    path.join(settings['func_out'], 'temp-SD.nii.gz')])
+
+    # Calculate AR1
+    ar1 = fsl.AR1Image(in_file=path.join(settings['func_out'], 'temp.nii.gz'),
+                       nan2zeros=True,
+                       out_file=path.join(settings['func_out'], 'temp-AR.nii.gz'))
+    ar1.run()
+
+    # Calculate predicted SD
+    subprocess.run(['fslmaths',
+                    path.join(settings['func_out'], 'temp-AR.nii.gz'),
+                    '-mul', '-1',
+                    '-add', '1',
+                    '-mul', '2',
+                    '-sqrt',
+                    '-mul', path.join(settings['func_out'], 'temp-SD.nii.gz'),
+                    path.join(settings['func_out'], 'temp-diffSDhat.nii.gz')])
+
+    stats.inputs.in_file = path.join(settings['func_out'], 'temp-diffSDhat.nii.gz')
+    img_stat = stats.run()
+    pred_sd = img_stat.outputs.out_stat
+
+    # Prepare images for temporal difference
+    roi = fsl.ExtractROI(in_file=path.join(settings['func_out'], 'temp.nii.gz'),
+                         t_min=0,
+                         t_size=settings['number_usable_vols']-1,
+                         roi_file=path.join(settings['func_out'], 'temp-0.nii.gz'))
+    roi.run()
+
+    roi.inputs.t_min = 1
+    roi.inputs.t_size = settings['number_usable_vols']-1
+    roi.inputs.roi_file = path.join(settings['func_out'], 'temp-1.nii.gz')
+    roi.run()
+
+    # Calculate DVARS
+    subprocess.run(['fslmaths',
+                    path.join(settings['func_out'], 'temp-0.nii.gz'),
+                    '-sub',
+                    path.join(settings['func_out'], 'temp-1.nii.gz'),
+                    '-sqr',
+                    path.join(settings['func_out'], 'temp-diffSq.nii.gz')])
+
+    stats.inputs.in_file = path.join(settings['func_out'], 'temp-diffSq.nii.gz')
+    stats.inputs.split_4d = True
+    img_stat = stats.run()
+    dvars = np.sqrt(img_stat.outputs.out_stat)
+
+    # Calculate standardised DVARS
+    subprocess.run(['fslmaths',
+                    path.join(settings['func_out'], 'temp-0.nii.gz'),
+                    '-sub',
+                    path.join(settings['func_out'], 'temp-1.nii.gz'),
+                    '-div',
+                    path.join(settings['func_out'], 'temp-diffSDhat.nii.gz'),
+                    '-sqr',
+                    path.join(settings['func_out'], 'temp-diffSqStd.nii.gz')])
+
+    stats.inputs.in_file = path.join(settings['func_out'], 'temp-diffSqStd.nii.gz')
+    img_stat = stats.run()
+    dvars_std = np.sqrt(img_stat.outputs.out_stat)/pred_sd
+
+    # Save
+    np.savetxt(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_movement-DVARS.csv"),
+               np.vstack((dvars, dvars_std)).T)
+
+    # Clean up files
+    for fname in ['temp', 'temp-lq', 'temp-uq', 'temp-SD', 'temp-AR', 'temp-diffSDhat',
+                  'temp-0', 'temp-1', 'temp-diffSq', 'temp-diffSqStd']:
+        os.remove(path.join(settings['func_out'], f'{fname}.nii.gz'))
+
+
 def initiate_preprocessed_image(subject, settings, run_number):
     """
     Creates the output preprocessed functional image.
@@ -154,7 +285,6 @@ def initiate_preprocessed_image(subject, settings, run_number):
     Updated settings object (dict)
 
     """
-    Updated settings object (dict)
     # Create a copy of the BOLD input image.
     copyfile(path.join(settings['func_in'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold.nii.gz"),
              path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
@@ -406,27 +536,6 @@ def anat_to_func(subject, settings, run_number):
         erode.run()
 
 
-def calc_dvars(in_file, out_file):
-    """
-    Create time series showing volumes that are likely corrupted by artifacts.
-
-    Based on Tom Nichols' approach and the original Power (2012) paper.
-
-    https://warwick.ac.uk/fac/sci/statistics/staff/academic-research/nichols/scripts/fsl/StandardizedDVARS.pdf
-
-    Parameters
-    ----------
-    in_file: str
-            Path to functional image
-    out_file: str
-            Path for output file
-
-    Returns
-    -------
-
-    """
-
-
 def estimate_head_motion(subject, settings, run_number):
     """
     Estimates head motion from volume realignment parameters. This is done on the original data that has not had slice
@@ -471,14 +580,6 @@ def estimate_head_motion(subject, settings, run_number):
     os.remove(path.join(settings['func_out'], "temp.nii.gz"))
     if path.isdir(path.join(settings['func_out'], "temp.nii.gz.mat")):
         os.rmdir(path.join(settings['func_out'], "temp.nii.gz.mat"))
-
-
-    # Calculate head motion parameters
-    # dvars = ComputeDVARS(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
-    #                      in_mask=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_brain-mask.nii.gz"),
-    #                      series_tr=settings['bold_TR'],
-    #                      out_std=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_movement-DVARS.csv"))
-    # dvars.run()
 
     framewise = FramewiseDisplacement(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_movement.par"),
                                       parameter_source='FSL',
