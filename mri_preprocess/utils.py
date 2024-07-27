@@ -13,6 +13,15 @@ from templateflow import api as tflow
 
 
 def initiate_settings():
+    """
+    Create the settings object with all default values.
+
+    Returns
+    -------
+    settings: dict
+            Dictionary holding all settings.
+
+    """
     settings = dict(root_dir="",
                     output_dir_name="",
                     session_number=None,
@@ -59,6 +68,21 @@ def initiate_settings():
 
 
 def update_settings(settings, settings_file):
+    """
+
+    Parameters
+    ----------
+    settings: dict
+            Settings object
+    settings_file: str
+            Path to the user defined settings file.
+
+    Returns
+    -------
+    settings: dict
+        Dictionary holding all settings.
+
+    """
     # Load in user's setting file
     with open(settings_file, 'r') as json_file:
         new_settings = json.load(json_file)
@@ -88,7 +112,22 @@ def update_settings(settings, settings_file):
 
     return settings
 
+
 def check_bids_style(root_dir):
+    """
+    Check that the root directory that the user specifies follows the required BIDS layout (i.e., has rawdata folder
+    and a derivatives folder).
+
+    Parameters
+    ----------
+    root_dir: str
+            Path to root directory for data.
+
+    Returns
+    -------
+    None
+
+    """
     if not path.isdir(path.join(root_dir, 'rawdata')):
         raise IsADirectoryError('The root directory does not contain a rawdata folder')
     if not path.isdir(path.join(root_dir, 'derivatives')):
@@ -96,6 +135,24 @@ def check_bids_style(root_dir):
 
 
 def create_output_dirs(subject, settings):
+    """
+    Create all the necessary output directories for specified subject.
+
+    Depending on user settings, will either overwrite existing directories or exit if directories already exist. Default
+    is to not overwrite existing directories.
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dict
+            Dictionary holding all settings.
+
+    Returns
+    -------
+    None
+
+    """
     # Create directories, overwriting any existing ones
     if settings['overwrite_directories']:
         print('Overwriting any existing directories.')
@@ -166,6 +223,29 @@ def create_output_dirs(subject, settings):
 
 
 def define_directories(subject, settings):
+    """
+    Put together the path for anatomical and functional inputs and outputs.
+
+    If the user specifies that there are multiple sessions then this will be included in the path. Otherwise, paths do
+    not have a session number.
+
+    Parameters
+    ----------
+    subject
+    settings
+
+    Returns
+    -------
+    anat_in: str
+            Path to input anatomical images
+    func_in: str
+            Path to input functional images
+    anat_out: str
+            Path where output of anatomical processing should be stored
+    func_out: str
+            Path where output of functional processing should be stored
+
+    """
     if settings['session_number']:
         # We set the session number in the directory here
         anat_in = path.join(settings['root_dir'], 'rawdata', subject, f"ses-{settings['session_number']:02d}", 'anat')
@@ -185,6 +265,22 @@ def define_directories(subject, settings):
 
 
 def prepare_directories(subject, settings):
+    """
+    Complete all steps to prepare the required directories and return their paths for subsequent use.
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dict
+            Dictionary holding all settings.
+
+    Returns
+    -------
+    settings: dict
+            Dictionary holding all settings.
+
+    """
     # Create directories and define relevant paths
     create_output_dirs(subject, settings)
     anat_in, func_in, anat_out, func_out = define_directories(subject, settings)
@@ -201,6 +297,25 @@ def prepare_directories(subject, settings):
 
 
 def check_template_file(template_name, resolution, desc=None, suffix=None):
+    """
+    Ensure that the template requested by the user is available from TemplateFlow. Downloads the template if it is
+    available and isn't yet on the local system.
+
+    Parameters
+    ----------
+    template_name: str
+            Name of the template
+    resolution: int
+            Resolution of the template
+    desc
+    suffix
+
+    Returns
+    -------
+    template_path: str
+            Path to the downloaded template file
+
+    """
     if desc:
         template_path = tflow.get(template_name,
                               resolution=resolution,
@@ -216,6 +331,21 @@ def check_template_file(template_name, resolution, desc=None, suffix=None):
         
 
 def check_thread_no(settings):
+    """
+    When the simultaneous processing of multiple functional runs is requested, this will ensure that the total number of
+    threads does not exceed what is avaialable in the system.
+
+    Parameters
+    ----------
+    settings: dict
+            Dictionary holding all settings.
+
+    Returns
+    -------
+        settings: dict
+            Dictionary holding all settings.
+
+    """
 
     # Check when processing multiple runs that the combined number isn't bigger than available
     if cpu_count()/settings['number_of_runs'] < settings['num_threads']:
