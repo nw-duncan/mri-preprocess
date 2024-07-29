@@ -7,9 +7,12 @@ Helper functions for preprocessing.
 """
 
 import json
+import os
+
 import numpy as np
 from os import path, mkdir, cpu_count
 from templateflow import api as tflow
+from shutil import rmtree
 
 
 def initiate_settings():
@@ -157,23 +160,37 @@ def create_output_dirs(subject, settings):
     if settings['overwrite_directories']:
         print('Overwriting any existing directories.')
         # Create overall output directory
+        if path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'])):
+            rmtree(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name']))
         mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name']))
         # Create subject output directory
+        if path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject)):
+            rmtree(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject))
         mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject))
         # If there are sessions
         if settings['session_number']:
             # Create session output directory
+            if path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}")):
+                rmtree(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}"))
             mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}"))
             # Create modality sepcific directories
             if settings['process_anat']:
+                if path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'anat')):
+                    rmtree(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'anat'))
                 mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'anat'))
             if settings['process_func']:
+                if path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'func')):
+                    rmtree(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'func'))
                 mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'func'))
             return
             # If there are no sessions
         if settings['process_anat']:
+            if path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'anat')):
+                rmtree(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'anat'))
             mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'anat'))
         if settings['process_func']:
+            if path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'func')):
+                rmtree(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'func'))
             mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'func'))
         return
 
