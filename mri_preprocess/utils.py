@@ -41,7 +41,7 @@ def initiate_settings():
                     reference_image=None,
                     slice_time_ref=0.5,
                     slice_encoding_direction='k',
-                    slice_order=None,
+                    slice_acquisition_order=None,
                     detrend_degree=3,
                     number_nonsteady_vols=None,
                     number_usable_vols=None,

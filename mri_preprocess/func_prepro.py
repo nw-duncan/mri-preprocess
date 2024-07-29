@@ -591,10 +591,10 @@ def estimate_head_motion(subject, settings, run_number):
 
 def slicetime_correct(subject, settings, run_number):
     """
-    Run slice time correction with AFNI Tshift.
+    Run slice time correction with AFNI Tshift when a sidecar json is available.
 
-    At the moment it's just working for data that has the BIDS json sidecar. Need to add functionality for
-    data missing this...
+    If no sidecar json is available, slicetime correction is run with FSL's slicetimer. TR and slice acquisition
+    order must be set in the settings file.
 
     Parameters
     ----------
@@ -619,27 +619,42 @@ def slicetime_correct(subject, settings, run_number):
             slice_encoding_direction = temp['SliceEncodingDirection']
         else:
             slice_encoding_direction = settings['slice_encoding_direction']
+
+        first, last = min(slice_times), max(slice_times)
+        frac = settings['slice_time_ref']
+        tzero = np.round(first + frac * (last - first), 3)
+
+        tshift = afni.TShift(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
+                             tzero=tzero,
+                             tr=str(settings['bold_TR']),
+                             slice_timing=slice_times,
+                             num_threads=settings['num_threads'],
+                             slice_encoding_direction=slice_encoding_direction,
+                             interp='Fourier',  # Use this???
+                             out_file=path.join(settings['func_out'], "temp.nii.gz"))  # ANFI won't overwrite an existing file
+        tshift.run()
+
+        move(path.join(settings['func_out'], "temp.nii.gz"),
+             path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
+        os.remove(path.join(os.getcwd(), 'slice_timing.1D'))
+
     else:
-        slice_encoding_direction = settings['slice_encoding_direction']
-        ### Need to finish this to work with data where the BIDs sidecar isn't available
+        slicetime = fsl.SliceTimer(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
+                                   time_repetition=settings['bold_TR'],
+                                   out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
 
-    first, last = min(slice_times), max(slice_times)
-    frac = settings['slice_time_ref']
-    tzero = np.round(first + frac * (last - first), 3)
+        if not settings['slice_acquisition_order']:
+            print('Insufficient information to run slice-time correction. Continuing without this step')
+            return
+        # Set the slice acquisition order
+        if settings['slice_acquisition_order'] == 'top-bottom':
+            slicetime.inputs.index_dir = True
+        elif settings['slice_acquisition_order'] == 'bottom-top':
+            slicetime.inputs.index_dir = False
+        elif settings['slice_acquisition_order'] == 'interleaved':
+            slicetime.inputs.interleaved = True
 
-    tshift = afni.TShift(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
-                         tzero=tzero,
-                         tr=str(settings['bold_TR']),
-                         slice_timing=slice_times,
-                         num_threads=settings['num_threads'],
-                         slice_encoding_direction=slice_encoding_direction,
-                         interp='Fourier',  # Use this???
-                         out_file=path.join(settings['func_out'], "temp.nii.gz"))  # ANFI won't overwrite an existing file
-    tshift.run()
-
-    move(path.join(settings['func_out'], "temp.nii.gz"),
-         path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
-    os.remove(path.join(os.getcwd(), 'slice_timing.1D'))
+        slicetime.run()
 
 
 def volume_realign(subject, settings, run_number):
