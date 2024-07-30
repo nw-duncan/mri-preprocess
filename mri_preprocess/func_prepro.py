@@ -465,7 +465,7 @@ def align_to_anatomical(subject, settings, run_number):
     # Do initial alignment
     flirt = fsl.FLIRT(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"),
                       reference=path.join(settings['anat_out'], f'{subject}_T1w_brain.nii.gz'),
-                      dof=6,
+                      dof=7,
                       out_matrix_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold2anat_init.mat"),
                       out_file=path.join(settings['func_out'], 'temp.nii.gz'))
     flirt.run()
@@ -473,16 +473,21 @@ def align_to_anatomical(subject, settings, run_number):
     # Clean up unnecessary image
     os.remove(path.join(settings['func_out'], 'temp.nii.gz'))
 
-    # Do BBR registration
+    # Do registration
     flirt = fsl.FLIRT(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"),
                       reference=path.join(settings['anat_out'], f'{subject}_T1w_brain.nii.gz'),
                       in_matrix_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold2anat_init.mat"),
-                      cost='bbr',
-                      wm_seg=path.join(settings['anat_out'], f'{subject}_wm-mask.nii.gz'),
-                      dof=6,
-                      schedule=os.environ['FSLDIR'] + '/etc/flirtsch/bbr.sch',
+                      dof=7,
                       out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference_anat-space.nii.gz"),
                       out_matrix_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold2anat.mat"))
+
+    if settings['bold_to_anat_cost'] == 'bbr':
+        flirt.inputs.cost = 'bbr'
+        flirt.inputs.wm_seg = path.join(settings['anat_out'], f'{subject}_wm-mask.nii.gz')
+        flirt.inputs.schedule = os.environ['FSLDIR'] + '/etc/flirtsch/bbr.sch'
+    else:
+        flirt.inputs.cost = settings['bold_to_anat_cost']
+
     flirt.run()
 
     # Calculate inverse transform

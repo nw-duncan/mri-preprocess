@@ -42,6 +42,7 @@ def initiate_settings():
                     drop_nonsteady_vols=True,
                     bold_reference_type="median",
                     reference_image=None,
+                    bold_to_anat_cost='bbr',
                     slice_time_ref=0.5,
                     slice_encoding_direction='k',
                     slice_acquisition_order=None,
