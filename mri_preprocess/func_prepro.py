@@ -13,7 +13,7 @@ import nibabel as nib
 import numpy as np
 import pandas as pd
 from nipype.interfaces import fsl, afni
-from nipype.algorithms.confounds import NonSteadyStateDetector, ComputeDVARS, FramewiseDisplacement
+from nipype.algorithms.confounds import NonSteadyStateDetector, FramewiseDisplacement
 from os import path
 from shutil import copyfile, move
 
@@ -59,7 +59,7 @@ def reorient_bold_to_standard(subject, settings, run_number):
     None
 
     """
-    in_file = path.join(settings['func_in'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold.nii.gz")
+    in_file = path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz")
     out_root = path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_")
     # Calculate the transform between original orientation and standard orientation
     with open(out_root + 'orig2std.mat', 'w') as fd:
@@ -99,6 +99,7 @@ def detect_nonsteady(subject, settings, run_number):
     n_vols = str(temp.outputs)
     n_vols = n_vols.split('=')[-1]
     return int(n_vols)
+
 
 def brain_extract_bold(subject, settings, run_number):
     """
@@ -306,6 +307,7 @@ def initiate_preprocessed_image(subject, settings, run_number):
     calc_dvars(subject, settings, run_number)
     return settings
 
+
 def nonsteady_reference(subject, settings, n_vols, run_number):
     """
     Creates the functional data reference image by averaging the non-steady volumes.
@@ -333,7 +335,9 @@ def nonsteady_reference(subject, settings, n_vols, run_number):
     elif n_vols > 1:
         in_data = in_img.get_fdata()[:, :, :, 0:n_vols]
         out_img = nib.Nifti1Image(np.mean(in_data, axis=-1), in_img.affine)
-    out_img.to_filename(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"))
+    ref_file = path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz")
+    out_img.to_filename(ref_file)
+    subprocess.run(['fslreorient2std', ref_file, ref_file])
 
 
 def external_reference(subject, settings, run_number):
