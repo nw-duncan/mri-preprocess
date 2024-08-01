@@ -207,19 +207,19 @@ def create_output_dirs(subject, settings):
                 mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'func'))
             else:
                 print('Functional output directory already exists. Not overwriting')
-        return
-    # Create anatomical output directory
-    if settings['process_anat']:
-        if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'anat')):
-            mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'anat'))
-        else:
-            print('Anatomical output directory already exists. Not overwriting')
-    # Create functional output directory
-    if settings['process_func']:
-        if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'func')):
-            mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'func'))
-        else:
-            print('Functional output directory already exists. Not overwriting')
+    else:
+        # Create anatomical output directory
+        if settings['process_anat']:
+            if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'anat')):
+                mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'anat'))
+            else:
+                print('Anatomical output directory already exists. Not overwriting')
+        # Create functional output directory
+        if settings['process_func']:
+            if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'func')):
+                mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'func'))
+            else:
+                print('Functional output directory already exists. Not overwriting')
 
 
 def define_directories(subject, settings):

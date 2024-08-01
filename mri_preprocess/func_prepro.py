@@ -295,7 +295,7 @@ def initiate_preprocessed_image(subject, settings, run_number):
     settings['number_usable_vols'] = in_img.shape[-1]
     # Remove any non-steady volumes if required
     if settings['drop_nonsteady_vols']:
-        out_img = nib.Nifti1Image(in_img.get_fdata()[:, :, :, settings['number_nonsteady_vols']], in_img.affine)
+        out_img = nib.Nifti1Image(in_img.get_fdata()[:, :, :, settings['number_nonsteady_vols']:], in_img.affine)
         out_img.to_filename(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
         settings['number_usable_vols'] = settings['number_usable_vols'] - settings['number_nonsteady_vols']
     # Reorient to standard
@@ -465,7 +465,7 @@ def align_to_anatomical(subject, settings, run_number):
     # Do initial alignment
     flirt = fsl.FLIRT(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"),
                       reference=path.join(settings['anat_out'], f'{subject}_T1w_brain.nii.gz'),
-                      dof=6,
+                      dof=7,
                       out_matrix_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold2anat_init.mat"),
                       out_file=path.join(settings['func_out'], 'temp.nii.gz'))
     flirt.run()
@@ -473,16 +473,21 @@ def align_to_anatomical(subject, settings, run_number):
     # Clean up unnecessary image
     os.remove(path.join(settings['func_out'], 'temp.nii.gz'))
 
-    # Do BBR registration
+    # Do registration
     flirt = fsl.FLIRT(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"),
                       reference=path.join(settings['anat_out'], f'{subject}_T1w_brain.nii.gz'),
                       in_matrix_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold2anat_init.mat"),
-                      cost='bbr',
-                      wm_seg=path.join(settings['anat_out'], f'{subject}_wm-mask.nii.gz'),
-                      dof=6,
-                      schedule=os.environ['FSLDIR'] + '/etc/flirtsch/bbr.sch',
+                      dof=7,
                       out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference_anat-space.nii.gz"),
                       out_matrix_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold2anat.mat"))
+
+    if settings['bold_to_anat_cost'] == 'bbr':
+        flirt.inputs.cost = 'bbr'
+        flirt.inputs.wm_seg = path.join(settings['anat_out'], f'{subject}_wm-mask.nii.gz')
+        flirt.inputs.schedule = os.environ['FSLDIR'] + '/etc/flirtsch/bbr.sch'
+    else:
+        flirt.inputs.cost = settings['bold_to_anat_cost']
+
     flirt.run()
 
     # Calculate inverse transform
@@ -591,10 +596,10 @@ def estimate_head_motion(subject, settings, run_number):
 
 def slicetime_correct(subject, settings, run_number):
     """
-    Run slice time correction with AFNI Tshift.
+    Run slice time correction with AFNI Tshift when a sidecar json is available.
 
-    At the moment it's just working for data that has the BIDS json sidecar. Need to add functionality for
-    data missing this...
+    If no sidecar json is available, slicetime correction is run with FSL's slicetimer. TR and slice acquisition
+    order must be set in the settings file.
 
     Parameters
     ----------
@@ -619,27 +624,42 @@ def slicetime_correct(subject, settings, run_number):
             slice_encoding_direction = temp['SliceEncodingDirection']
         else:
             slice_encoding_direction = settings['slice_encoding_direction']
+
+        first, last = min(slice_times), max(slice_times)
+        frac = settings['slice_time_ref']
+        tzero = np.round(first + frac * (last - first), 3)
+
+        tshift = afni.TShift(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
+                             tzero=tzero,
+                             tr=str(settings['bold_TR']),
+                             slice_timing=slice_times,
+                             num_threads=settings['num_threads'],
+                             slice_encoding_direction=slice_encoding_direction,
+                             interp='Fourier',  # Use this???
+                             out_file=path.join(settings['func_out'], "temp.nii.gz"))  # ANFI won't overwrite an existing file
+        tshift.run()
+
+        move(path.join(settings['func_out'], "temp.nii.gz"),
+             path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
+        os.remove(path.join(os.getcwd(), 'slice_timing.1D'))
+
     else:
-        slice_encoding_direction = settings['slice_encoding_direction']
-        ### Need to finish this to work with data where the BIDs sidecar isn't available
+        slicetime = fsl.SliceTimer(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
+                                   time_repetition=settings['bold_TR'],
+                                   out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
 
-    first, last = min(slice_times), max(slice_times)
-    frac = settings['slice_time_ref']
-    tzero = np.round(first + frac * (last - first), 3)
+        if not settings['slice_acquisition_order']:
+            print('Insufficient information to run slice-time correction. Continuing without this step')
+            return
+        # Set the slice acquisition order
+        if settings['slice_acquisition_order'] == 'top-bottom':
+            slicetime.inputs.index_dir = True
+        elif settings['slice_acquisition_order'] == 'bottom-top':
+            slicetime.inputs.index_dir = False
+        elif settings['slice_acquisition_order'] == 'interleaved':
+            slicetime.inputs.interleaved = True
 
-    tshift = afni.TShift(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
-                         tzero=tzero,
-                         tr=str(settings['bold_TR']),
-                         slice_timing=slice_times,
-                         num_threads=settings['num_threads'],
-                         slice_encoding_direction=slice_encoding_direction,
-                         interp='Fourier',  # Use this???
-                         out_file=path.join(settings['func_out'], "temp.nii.gz"))  # ANFI won't overwrite an existing file
-    tshift.run()
-
-    move(path.join(settings['func_out'], "temp.nii.gz"),
-         path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
-    os.remove(path.join(os.getcwd(), 'slice_timing.1D'))
+        slicetime.run()
 
 
 def volume_realign(subject, settings, run_number):
