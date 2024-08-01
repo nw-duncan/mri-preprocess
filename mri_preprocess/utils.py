@@ -207,7 +207,7 @@ def create_output_dirs(subject, settings):
                 mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'func'))
             else:
                 print('Functional output directory already exists. Not overwriting')
-    return
+        return
     # Create anatomical output directory
     if settings['process_anat']:
         if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'anat')):
