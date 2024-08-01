@@ -295,7 +295,7 @@ def initiate_preprocessed_image(subject, settings, run_number):
     settings['number_usable_vols'] = in_img.shape[-1]
     # Remove any non-steady volumes if required
     if settings['drop_nonsteady_vols']:
-        out_img = nib.Nifti1Image(in_img.get_fdata()[:, :, :, settings['number_nonsteady_vols']], in_img.affine)
+        out_img = nib.Nifti1Image(in_img.get_fdata()[:, :, :, settings['number_nonsteady_vols']:], in_img.affine)
         out_img.to_filename(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
         settings['number_usable_vols'] = settings['number_usable_vols'] - settings['number_nonsteady_vols']
     # Reorient to standard
