@@ -283,15 +283,7 @@ def prepare_directories(subject, settings):
     """
     # Create directories and define relevant paths
     create_output_dirs(subject, settings)
-    anat_in, func_in, anat_out, func_out = define_directories(subject, settings)
-
-    # Set required paths in settings object
-    if settings['process_anat']:
-        settings['anat_in'] = anat_in
-        settings['anat_out'] = anat_out
-    if settings['process_func']:
-        settings['func_in'] = func_in
-        settings['func_out'] = func_out
+    settings['anat_in'], settings['func_in'], settings['anat_out'], settings['func_out'] = define_directories(subject, settings)
 
     return settings
 
