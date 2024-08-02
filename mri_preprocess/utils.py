@@ -7,12 +7,9 @@ Helper functions for preprocessing.
 """
 
 import json
-import os
-
 import numpy as np
 from os import path, mkdir, cpu_count
 from templateflow import api as tflow
-from shutil import rmtree
 
 
 def initiate_settings():
@@ -41,16 +38,17 @@ def initiate_settings():
                     bold_TR=None,
                     drop_nonsteady_vols=True,
                     bold_reference_type="median",
+                    bold_to_anat_cost="bbr",
                     reference_image=None,
-                    bold_to_anat_cost='bbr',
                     slice_time_ref=0.5,
                     slice_encoding_direction='k',
-                    slice_acquisition_order=None,
+                    slice_order=None,
                     detrend_degree=3,
                     number_nonsteady_vols=None,
                     number_usable_vols=None,
                     smoothing_fwhm=None,
                     run_melodic_ica=False,
+                    slice_acquisition_order=None,
                     ants_reg_params={"transforms": ["Affine", "SyN"],
                                         "metric": ["Mattes", "Mattes"],
                                         "shrink_factors": [[2, 1], [3, 2, 1]],
@@ -161,37 +159,23 @@ def create_output_dirs(subject, settings):
     if settings['overwrite_directories']:
         print('Overwriting any existing directories.')
         # Create overall output directory
-        if path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'])):
-            rmtree(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name']))
         mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name']))
         # Create subject output directory
-        if path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject)):
-            rmtree(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject))
         mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject))
         # If there are sessions
         if settings['session_number']:
             # Create session output directory
-            if path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}")):
-                rmtree(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}"))
             mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}"))
             # Create modality sepcific directories
             if settings['process_anat']:
-                if path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'anat')):
-                    rmtree(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'anat'))
                 mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'anat'))
             if settings['process_func']:
-                if path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'func')):
-                    rmtree(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'func'))
                 mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'func'))
             return
             # If there are no sessions
         if settings['process_anat']:
-            if path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'anat')):
-                rmtree(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'anat'))
             mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'anat'))
         if settings['process_func']:
-            if path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'func')):
-                rmtree(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'func'))
             mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'func'))
         return
 
@@ -301,15 +285,7 @@ def prepare_directories(subject, settings):
     """
     # Create directories and define relevant paths
     create_output_dirs(subject, settings)
-    anat_in, func_in, anat_out, func_out = define_directories(subject, settings)
-
-    # Set required paths in settings object
-    if settings['process_anat']:
-        settings['anat_in'] = anat_in
-        settings['anat_out'] = anat_out
-    if settings['process_func']:
-        settings['func_in'] = func_in
-        settings['func_out'] = func_out
+    settings['anat_in'], settings['func_in'], settings['anat_out'], settings['func_out'] = define_directories(subject, settings)
 
     return settings
 
