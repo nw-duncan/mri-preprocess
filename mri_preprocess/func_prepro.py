@@ -168,85 +168,85 @@ def calc_dvars(subject, settings, run_number):
     bin_maths = fsl.BinaryMaths(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
                                 operation='mul',
                                 operand_value=scaling_factor,
-                                out_file=path.join(settings['func_out'], 'temp.nii.gz'))
+                                out_file=path.join(settings['func_out'], f'temp_{run_number}.nii.gz'))
     bin_maths.run()
 
     # Calculate robust SD
-    pct = fsl.PercentileImage(in_file=path.join(settings['func_out'], 'temp.nii.gz'),
+    pct = fsl.PercentileImage(in_file=path.join(settings['func_out'], f'temp_{run_number}.nii.gz'),
                               nan2zeros=True,
                               perc=25,
-                              out_file=path.join(settings['func_out'], 'temp-lq.nii.gz'))
+                              out_file=path.join(settings['func_out'], f'temp_{run_number}-lq.nii.gz'))
     pct.run()
 
-    pct.inputs.in_file = path.join(settings['func_out'], 'temp.nii.gz')
+    pct.inputs.in_file = path.join(settings['func_out'], f'temp_{run_number}.nii.gz')
     pct.inputs.perc = 75
-    pct.inputs.out_file = path.join(settings['func_out'], 'temp-uq.nii.gz')
+    pct.inputs.out_file = path.join(settings['func_out'], f'temp_{run_number}-uq.nii.gz')
     pct.run()
 
     subprocess.run(['fslmaths',
-                    path.join(settings['func_out'], 'temp-uq.nii.gz'),
+                    path.join(settings['func_out'], f'temp_{run_number}-uq.nii.gz'),
                     '-sub',
-                    path.join(settings['func_out'], 'temp-lq.nii.gz'),
+                    path.join(settings['func_out'], f'temp_{run_number}-lq.nii.gz'),
                     '-div',
                     '1.349',
-                    path.join(settings['func_out'], 'temp-SD.nii.gz')])
+                    path.join(settings['func_out'], f'temp_{run_number}-SD.nii.gz')])
 
     # Calculate AR1
-    ar1 = fsl.AR1Image(in_file=path.join(settings['func_out'], 'temp.nii.gz'),
+    ar1 = fsl.AR1Image(in_file=path.join(settings['func_out'], f'temp_{run_number}.nii.gz'),
                        nan2zeros=True,
-                       out_file=path.join(settings['func_out'], 'temp-AR.nii.gz'))
+                       out_file=path.join(settings['func_out'], f'temp_{run_number}-AR.nii.gz'))
     ar1.run()
 
     # Calculate predicted SD
     subprocess.run(['fslmaths',
-                    path.join(settings['func_out'], 'temp-AR.nii.gz'),
+                    path.join(settings['func_out'], f'temp_{run_number}-AR.nii.gz'),
                     '-mul', '-1',
                     '-add', '1',
                     '-mul', '2',
                     '-sqrt',
-                    '-mul', path.join(settings['func_out'], 'temp-SD.nii.gz'),
-                    path.join(settings['func_out'], 'temp-diffSDhat.nii.gz')])
+                    '-mul', path.join(settings['func_out'], f'temp_{run_number}-SD.nii.gz'),
+                    path.join(settings['func_out'], f'temp_{run_number}-diffSDhat.nii.gz')])
 
-    stats.inputs.in_file = path.join(settings['func_out'], 'temp-diffSDhat.nii.gz')
+    stats.inputs.in_file = path.join(settings['func_out'], f'temp_{run_number}-diffSDhat.nii.gz')
     img_stat = stats.run()
     pred_sd = img_stat.outputs.out_stat
 
     # Prepare images for temporal difference
-    roi = fsl.ExtractROI(in_file=path.join(settings['func_out'], 'temp.nii.gz'),
+    roi = fsl.ExtractROI(in_file=path.join(settings['func_out'], f'temp_{run_number}.nii.gz'),
                          t_min=0,
                          t_size=settings['number_usable_vols']-1,
-                         roi_file=path.join(settings['func_out'], 'temp-0.nii.gz'))
+                         roi_file=path.join(settings['func_out'], f'temp_{run_number}-0.nii.gz'))
     roi.run()
 
     roi.inputs.t_min = 1
     roi.inputs.t_size = settings['number_usable_vols']-1
-    roi.inputs.roi_file = path.join(settings['func_out'], 'temp-1.nii.gz')
+    roi.inputs.roi_file = path.join(settings['func_out'], f'temp_{run_number}-1.nii.gz')
     roi.run()
 
     # Calculate DVARS
     subprocess.run(['fslmaths',
-                    path.join(settings['func_out'], 'temp-0.nii.gz'),
+                    path.join(settings['func_out'], f'temp_{run_number}-0.nii.gz'),
                     '-sub',
-                    path.join(settings['func_out'], 'temp-1.nii.gz'),
+                    path.join(settings['func_out'], f'temp_{run_number}-1.nii.gz'),
                     '-sqr',
-                    path.join(settings['func_out'], 'temp-diffSq.nii.gz')])
+                    path.join(settings['func_out'], f'temp_{run_number}-diffSq.nii.gz')])
 
-    stats.inputs.in_file = path.join(settings['func_out'], 'temp-diffSq.nii.gz')
+    stats.inputs.in_file = path.join(settings['func_out'], f'temp_{run_number}-diffSq.nii.gz')
     stats.inputs.split_4d = True
     img_stat = stats.run()
     dvars = np.sqrt(img_stat.outputs.out_stat)
 
     # Calculate standardised DVARS
     subprocess.run(['fslmaths',
-                    path.join(settings['func_out'], 'temp-0.nii.gz'),
+                    path.join(settings['func_out'], f'temp_{run_number}-0.nii.gz'),
                     '-sub',
-                    path.join(settings['func_out'], 'temp-1.nii.gz'),
+                    path.join(settings['func_out'], f'temp_{run_number}-1.nii.gz'),
                     '-div',
-                    path.join(settings['func_out'], 'temp-diffSDhat.nii.gz'),
+                    path.join(settings['func_out'], f'temp_{run_number}-diffSDhat.nii.gz'),
                     '-sqr',
-                    path.join(settings['func_out'], 'temp-diffSqStd.nii.gz')])
+                    path.join(settings['func_out'], f'temp_{run_number}-diffSqStd.nii.gz')])
 
-    stats.inputs.in_file = path.join(settings['func_out'], 'temp-diffSqStd.nii.gz')
+    stats.inputs.in_file = path.join(settings['func_out'], f'temp_{run_number}-diffSqStd.nii.gz')
     img_stat = stats.run()
     dvars_std = np.sqrt(img_stat.outputs.out_stat)/pred_sd
 
@@ -255,9 +255,9 @@ def calc_dvars(subject, settings, run_number):
                np.vstack((dvars, dvars_std)).T)
 
     # Clean up files
-    for fname in ['temp', 'temp-lq', 'temp-uq', 'temp-SD', 'temp-AR', 'temp-diffSDhat',
-                  'temp-median', 'temp-0', 'temp-1', 'temp-diffSq', 'temp-diffSqStd']:
-        os.remove(path.join(settings['func_out'], f'{fname}.nii.gz'))
+    for fname in ['', '-lq', '-uq', '-SD', '-AR', '-diffSDhat',
+                  '-median', '-0', '-1', '-diffSq', '-diffSqStd']:
+        os.remove(path.join(settings['func_out'], f'temp_{run_number}{fname}.nii.gz'))
 
 
 def initiate_preprocessed_image(subject, settings, run_number):
@@ -467,11 +467,11 @@ def align_to_anatomical(subject, settings, run_number):
                       reference=path.join(settings['anat_out'], f'{subject}_T1w_brain.nii.gz'),
                       dof=7,
                       out_matrix_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold2anat_init.mat"),
-                      out_file=path.join(settings['func_out'], 'temp.nii.gz'))
+                      out_file=path.join(settings['func_out'], f'temp_{run_number}.nii.gz'))
     flirt.run()
 
     # Clean up unnecessary image
-    os.remove(path.join(settings['func_out'], 'temp.nii.gz'))
+    os.remove(path.join(settings['func_out'], f'temp_{run_number}.nii.gz'))
 
     # Do registration
     flirt = fsl.FLIRT(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"),
@@ -572,21 +572,21 @@ def estimate_head_motion(subject, settings, run_number):
                           save_plots=True,
                           save_rms=True,
                           stats_imgs=False,
-                          out_file=path.join(settings['func_out'], 'temp.nii.gz'))
+                          out_file=path.join(settings['func_out'], f'temp_{run_number}.nii.gz'))
     mcflirt.run()
 
     # Tidy filenames
-    move(path.join(settings['func_out'], "temp.nii.gz.par"),
+    move(path.join(settings['func_out'], f"temp_{run_number}.nii.gz.par"),
                    path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_movement.par"))
-    move(path.join(settings['func_out'], "temp.nii.gz_abs.rms"),
+    move(path.join(settings['func_out'], f"temp_{run_number}.nii.gz_abs.rms"),
                    path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_movement-abs-RMS.csv"))
-    move(path.join(settings['func_out'], "temp.nii.gz_rel.rms"),
+    move(path.join(settings['func_out'], f"temp_{run_number}.nii.gz_rel.rms"),
                    path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_movement-rel-RMS.csv"))
-    os.remove(path.join(settings['func_out'], "temp.nii.gz_rel_mean.rms"))
-    os.remove(path.join(settings['func_out'], "temp.nii.gz_abs_mean.rms"))
-    os.remove(path.join(settings['func_out'], "temp.nii.gz"))
-    if path.isdir(path.join(settings['func_out'], "temp.nii.gz.mat")):
-        os.rmdir(path.join(settings['func_out'], "temp.nii.gz.mat"))
+    os.remove(path.join(settings['func_out'], f"temp_{run_number}.nii.gz_rel_mean.rms"))
+    os.remove(path.join(settings['func_out'], f"temp_{run_number}.nii.gz_abs_mean.rms"))
+    os.remove(path.join(settings['func_out'], f"temp_{run_number}.nii.gz"))
+    if path.isdir(path.join(settings['func_out'], f"temp_{run_number}.nii.gz.mat")):
+        os.rmdir(path.join(settings['func_out'], f"temp_{run_number}.nii.gz.mat"))
 
     framewise = FramewiseDisplacement(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_movement.par"),
                                       parameter_source='FSL',
@@ -636,10 +636,10 @@ def slicetime_correct(subject, settings, run_number):
                              num_threads=settings['num_threads'],
                              slice_encoding_direction=slice_encoding_direction,
                              interp='Fourier',  # Use this???
-                             out_file=path.join(settings['func_out'], "temp.nii.gz"))  # ANFI won't overwrite an existing file
+                             out_file=path.join(settings['func_out'], f"temp_{run_number}.nii.gz"))  # ANFI won't overwrite an existing file
         tshift.run()
 
-        move(path.join(settings['func_out'], "temp.nii.gz"),
+        move(path.join(settings['func_out'], f"temp_{run_number}.nii.gz"),
              path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"))
         os.remove(path.join(os.getcwd(), 'slice_timing.1D'))
 
@@ -888,7 +888,7 @@ def smooth_data(subject, settings, run_number, melodic_smooth=False):
                str(3),
                str(0),
                str(0),
-               path.join(settings['func_out'], "temp.nii.gz")]
+               path.join(settings['func_out'], f"temp_{run_number}.nii.gz")]
 
         subprocess.run(cmd)
 
@@ -934,7 +934,7 @@ def run_melodic_ica(subject, settings, run_number):
     smooth_data(subject, settings, run_number, melodic_smooth=True)
 
     # Run MELODIC
-    melodic = fsl.MELODIC(in_files=path.join(settings['func_out'], 'temp.nii.gz'),
+    melodic = fsl.MELODIC(in_files=path.join(settings['func_out'], f'temp_{run_number}.nii.gz'),
                           approach='tica',
                           bg_image=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_T1w-brain.nii.gz"),
                           mask=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_brain-mask.nii.gz"),
@@ -945,7 +945,7 @@ def run_melodic_ica(subject, settings, run_number):
     melodic.run()
 
     # Clean up the temporary smoothed image
-    os.remove(path.join(settings['func_out'], 'temp.nii.gz'))
+    os.remove(path.join(settings['func_out'], f'temp_{run_number}.nii.gz'))
 
 
 def run_func_preprocess(subject, settings, run_number):
