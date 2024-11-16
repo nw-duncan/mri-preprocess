@@ -40,6 +40,7 @@ def initiate_settings():
                     bold_reference_type="median",
                     bold_to_anat_cost="bbr",
                     reference_image=None,
+                    run_slice_timing=True,
                     slice_time_ref=0.5,
                     slice_encoding_direction='k',
                     slice_acquisition_order=None,
