@@ -997,7 +997,8 @@ def run_func_preprocess(subject, settings, run_number):
     estimate_head_motion(subject, settings, run_number)
 
     # Slice-time correct
-    slicetime_correct(subject, settings, run_number)
+    if settings['run_slice_timing']:
+        slicetime_correct(subject, settings, run_number)
 
     # Volume realignment
     volume_realign(subject, settings, run_number)
