@@ -157,10 +157,10 @@ def calc_dvars(subject, settings, run_number):
     # Standardise the image to an overall value of 1000
     median = fsl.MedianImage(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz"),
                              nan2zeros=True,
-                             out_file=path.join(settings['func_out'], 'temp-median.nii.gz'))
+                             out_file=path.join(settings['func_out'], f'temp_{run_number}-median.nii.gz'))
     median.run()
 
-    stats = fsl.ImageStats(in_file=path.join(settings['func_out'], 'temp-median.nii.gz'),
+    stats = fsl.ImageStats(in_file=path.join(settings['func_out'], f'temp_{run_number}-median.nii.gz'),
                            mask_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_brain-mask.nii.gz"),
                            op_string='-M')
     img_stat = stats.run()
