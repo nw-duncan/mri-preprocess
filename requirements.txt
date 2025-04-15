@@ -6,3 +6,4 @@ scipy
 pandas
 setuptools
 nipype
+nilearn

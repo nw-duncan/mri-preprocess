@@ -10,8 +10,7 @@ import os.path as osp
 import numpy as np
 import nibabel as ni
 import matplotlib.pyplot as plt
-
-from nilearn import plotting
+import nilearn.plotting as niplt
 from nipype.interfaces import ants
 from scipy.stats import zscore
 from mri_preprocess import utils
@@ -67,17 +66,17 @@ def create_anatomical_report(subject, settings):
     # Show anatomical segmentation
     gs0 = gs[0, 0].subgridspec(3, 1, wspace=0.2, hspace=0)
     ax1, ax2, ax3 = gs0.subplots()
-    plotting.plot_roi(segmentation_img,
+    niplt.plot_roi(segmentation_img,
                       bg_img=osp.join(settings['anat_in'], f'{subject}_T1w_std_crop_biascorr.nii.gz'),
                       display_mode='z', cut_coords=(20, 40, 50, 60, 70, 80, 90),
                       axes=ax1,
                       draw_cross=False, annotate=False, black_bg=False, cmap='Paired')
-    plotting.plot_roi(segmentation_img,
+    niplt.plot_roi(segmentation_img,
                       bg_img=osp.join(settings['anat_in'], f'{subject}_T1w_std_crop_biascorr.nii.gz'),
                       display_mode='x', cut_coords=(-50, -40, -20, 0, 20, 40, 50),
                       axes=ax2,
                       draw_cross=False, annotate=False, black_bg=False, cmap='Paired')
-    plotting.plot_roi(segmentation_img,
+    niplt.plot_roi(segmentation_img,
                       bg_img=osp.join(settings['anat_in'], f'{subject}_T1w_std_crop_biascorr.nii.gz'),
                       display_mode='y', cut_coords=(-40, -20, 0, 25, 45, 55, 65),
                       axes=ax3,
@@ -85,17 +84,17 @@ def create_anatomical_report(subject, settings):
     # Show anatomical alignment to template
     gs1 = gs[1, 0].subgridspec(3, 1, wspace=0.2, hspace=0)
     ax4, ax5, ax6 = gs1.subplots()
-    plotting.plot_roi(osp.join(settings['anat_in'], f'{subject}_gm-edge_MNI152NLin6Asym.nii.gz'),
+    niplt.plot_roi(osp.join(settings['anat_in'], f'{subject}_gm-edge_MNI152NLin6Asym.nii.gz'),
                       bg_img=template_path,
                       display_mode='z', cut_coords=(-50, -40, -20, 0, 20, 40, 50),
                       axes=ax4,
                       draw_cross=False, annotate=False, black_bg=False, cmap='Paired')
-    plotting.plot_roi(osp.join(settings['anat_in'], f'{subject}_gm-edge_MNI152NLin6Asym.nii.gz'),
+    niplt.plot_roi(osp.join(settings['anat_in'], f'{subject}_gm-edge_MNI152NLin6Asym.nii.gz'),
                       bg_img=template_path,
                       display_mode='x', cut_coords=(-50, -40, -20, 0, 20, 40, 50),
                       axes=ax5,
                       draw_cross=False, annotate=False, black_bg=False, cmap='Paired')
-    plotting.plot_roi(osp.join(settings['anat_in'], f'{subject}_gm-edge_MNI152NLin6Asym.nii.gz'),
+    niplt.plot_roi(osp.join(settings['anat_in'], f'{subject}_gm-edge_MNI152NLin6Asym.nii.gz'),
                       bg_img=template_path,
                       display_mode='y', cut_coords=(-50, -40, -20, 0, 20, 40, 50),
                       axes=ax6,
