@@ -15,6 +15,7 @@ from nipype.interfaces import ants
 from nipype.interfaces import fsl
 from shutil import copyfile, move
 from mri_preprocess import utils
+from mri_preprocess.plotting import create_anatomical_report
 
 
 def reorient_t1_to_standard(subject, settings):
@@ -300,4 +301,6 @@ def run_anat_preprocess(subject, settings):
     brain_extract(subject, settings)
     # Tissue segmentation
     tissue_segment(subject, settings)
+    # Create a preprocessing quality report
+    create_anatomical_report(subject, settings)
 

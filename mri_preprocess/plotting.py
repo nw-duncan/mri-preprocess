@@ -84,6 +84,6 @@ def create_anatomical_report(subject, settings):
                       axes=ax6,
                       draw_cross=False, annotate=False, black_bg=False, cmap='Paired')
     # Save image
-    fig.savefig(osp.join(data_dir, 'derivatives', pre_folder, 'images', 'anat', f'{subject}_anatomical-preprocessing.png'),
+    fig.savefig(osp.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images', 'anat', f'{subject}_anatomical-preprocessing.png'),
                  bbox_inches='tight', dpi=300)
     plt.close(fig)
