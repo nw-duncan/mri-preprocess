@@ -401,46 +401,6 @@ def median_reference(subject, settings, run_number):
     os.remove(path.join(settings['func_out'], 'temp-bold.nii.gz'))
 
 
-def create_tissue_masks(subject, settings):
-    """
-    Creates masks for grey matter, white matter, and CSF in from the anatomical data.
-
-    Note that these are in the anatomical space - BBR looks for the white matter one.
-
-    Skips if the files already exist.
-
-    Parameters
-    ----------
-    subject: str
-            Subject ID
-    settings: dictionary
-            Settings object
-
-    Returns
-    -------
-    None
-
-    """
-    for pve, tissue in enumerate(['csf', 'gm', 'wm']):
-        if not path.isfile(path.join(settings['anat_out'], f'{subject}_{tissue}-mask.nii.gz')):
-            # Threshold white matter probability at 50% and make binary mask
-            thresh = fsl.Threshold(in_file=path.join(settings['anat_out'], f'{subject}_T1w_brain_pve_{pve}.nii.gz'),
-                          thresh=0.5,
-                          out_file=path.join(settings['anat_out'], f'{subject}_{tissue}-mask.nii.gz'))
-            thresh.run()
-            binarise = fsl.UnaryMaths(in_file=path.join(settings['anat_out'], f'{subject}_{tissue}-mask.nii.gz'),
-                                      operation='bin',
-                                      out_file=path.join(settings['anat_out'], f'{subject}_{tissue}-mask.nii.gz'))
-            binarise.run()
-        if not path.isfile(path.join(settings['anat_out'], f'{subject}_{tissue}-edge.nii.gz')):
-            subprocess.run(['fslmaths',
-                            path.join(settings['anat_out'], f'{subject}_{tissue}-mask.nii.gz'),
-                            '-edge',
-                            '-bin',
-                            '-mas',
-                            path.join(settings['anat_out'], f'{subject}_{tissue}-mask.nii.gz'),
-                            path.join(settings['anat_out'], f'{subject}_{tissue}-edge.nii.gz')])
-
 
 def align_to_anatomical(subject, settings, run_number):
     """
@@ -463,8 +423,6 @@ def align_to_anatomical(subject, settings, run_number):
     None
 
     """
-    # Create the white matter segmenation needed for BBR
-    create_tissue_masks(subject, settings)
 
     # Do initial alignment
     flirt = fsl.FLIRT(in_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"),
@@ -499,6 +457,7 @@ def align_to_anatomical(subject, settings, run_number):
                             invert_xfm=True,
                             out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_anat2bold.mat"))
     invert.run()
+
 
 def anat_to_func(subject, settings, run_number):
     """

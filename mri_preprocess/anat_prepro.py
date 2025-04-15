@@ -271,7 +271,47 @@ def tissue_segment(subject, settings):
                     #out_basename=path.join(root_dir, 'derivatives', out_dir, subject, 'anat', f'{subject}_T1w_brain.nii.gz'))
     
     fast.run()
-    
+
+
+def create_tissue_masks(subject, settings):
+    """
+    Creates masks for grey matter, white matter, and CSF in from the anatomical data.
+
+    Skips if the files already exist.
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+
+    Returns
+    -------
+    None
+
+    """
+    for pve, tissue in enumerate(['csf', 'gm', 'wm']):
+        if not path.isfile(path.join(settings['anat_out'], f'{subject}_{tissue}-mask.nii.gz')):
+            # Threshold white matter probability at 50% and make binary mask
+            thresh = fsl.Threshold(in_file=path.join(settings['anat_out'], f'{subject}_T1w_brain_pve_{pve}.nii.gz'),
+                          thresh=0.5,
+                          out_file=path.join(settings['anat_out'], f'{subject}_{tissue}-mask.nii.gz'))
+            thresh.run()
+            binarise = fsl.UnaryMaths(in_file=path.join(settings['anat_out'], f'{subject}_{tissue}-mask.nii.gz'),
+                                      operation='bin',
+                                      out_file=path.join(settings['anat_out'], f'{subject}_{tissue}-mask.nii.gz'))
+            binarise.run()
+        if not path.isfile(path.join(settings['anat_out'], f'{subject}_{tissue}-edge.nii.gz')):
+            subprocess.run(['fslmaths',
+                            path.join(settings['anat_out'], f'{subject}_{tissue}-mask.nii.gz'),
+                            '-edge',
+                            '-bin',
+                            '-mas',
+                            path.join(settings['anat_out'], f'{subject}_{tissue}-mask.nii.gz'),
+                            path.join(settings['anat_out'], f'{subject}_{tissue}-edge.nii.gz')])
+
+
 def run_anat_preprocess(subject, settings):
     """
     Run each of the anatomical preprocessing steps.
@@ -301,6 +341,8 @@ def run_anat_preprocess(subject, settings):
     brain_extract(subject, settings)
     # Tissue segmentation
     tissue_segment(subject, settings)
+    # Create masks for GM, WM, and CSF
+    create_tissue_masks(subject, settings)
     # Create a preprocessing quality report
     create_anatomical_report(subject, settings)
 
