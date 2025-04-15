@@ -16,6 +16,7 @@ from nipype.interfaces import fsl, afni
 from nipype.algorithms.confounds import NonSteadyStateDetector, FramewiseDisplacement
 from os import path
 from shutil import copyfile, move
+from mri_preprocess.plotting import create_functional_report
 
 def tr_from_json(subject, settings, run_number):
     """
@@ -978,4 +979,7 @@ def run_func_preprocess(subject, settings, run_number):
     # Run MELODIC for FIX denoising - default is to not do
     if settings['run_melodic_ica']:
         run_melodic_ica(subject, settings, run_number)
+
+    # Create QC image
+    create_functional_report(subject, settings, run_number)
 

@@ -168,19 +168,19 @@ def create_functional_report(subject, settings, run_number):
     # Show anatomical segmentation
     gs0 = gs[0, 0].subgridspec(3, 1, wspace=0.2, hspace=0)
     ax1, ax2, ax3 = gs0.subplots()
-    plotting.plot_roi(
+    niplt.plot_roi(
         path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_gm-mask.nii.gz"),
         bg_img=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"),
         display_mode='z', cut_coords=(20, 40, 50, 60, 70, 80, 90),
         axes=ax1,
         draw_cross=False, annotate=False, black_bg=False, cmap='Paired')
-    plotting.plot_roi(
+    niplt.plot_roi(
         path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_gm-mask.nii.gz"),
         bg_img=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"),
         display_mode='x', cut_coords=(-50, -40, -20, 0, 20, 40, 50),
         axes=ax2,
         draw_cross=False, annotate=False, black_bg=False, cmap='Paired')
-    plotting.plot_roi(
+    niplt.plot_roi(
         path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_gm-mask.nii.gz"),
         bg_img=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-reference.nii.gz"),
         display_mode='y', cut_coords=(-40, -20, 0, 25, 45, 55, 65),
