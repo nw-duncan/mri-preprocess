@@ -139,8 +139,8 @@ def extract_timeseries(subject, settings, run_number):
     # Load data
     data = ni.load(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_bold-preproc.nii.gz")).get_fdata()
     wm_mask = ni.load(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_wm-mask.nii.gz")).get_fdata()
-    gm_mask = ni.load(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_gm-mask.nii.gz").get_fdata()
-    csf_mask = ni.load(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_csf-mask.nii.gz"))).get_fdata()
+    gm_mask = ni.load(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_gm-mask.nii.gz")).get_fdata()
+    csf_mask = ni.load(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_csf-mask.nii.gz")).get_fdata()
     # Get timeseries
     wm_tcs = data[wm_mask==1]
     gm_tcs = data[gm_mask==1]
@@ -226,7 +226,6 @@ def create_functional_report(subject, settings, run_number):
     ax7.set_xlabel('Volume')
     ax7.set_xlim((0, all_tcs.shape[1]))
     # Save image
-    fig.savefig(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images',
-                         'func', f'f"{subject}_task-{settings['task_name']}_run-{run_number}_functional-preprocessing.png'),
+    fig.savefig(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images', 'func', f"{subject}_task-{settings['task_name']}_run-{run_number}_functional-preprocessing.png"),
                 bbox_inches='tight', dpi=300)
     plt.close(fig)
