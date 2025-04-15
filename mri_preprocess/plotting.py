@@ -44,6 +44,20 @@ def normalise_gm(subject, settings, template_path):
 
 
 def combine_segmentation(subject, settings):
+    """
+    Combine the GM and the CSF edge images in preparation for superimposing on the T1 image.
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+
+    Returns
+    -------
+
+    """
     img = ni.load(osp.join(settings['anat_out'], f'{subject}_gm-edge.nii.gz'))
     aff = img.affine
     img = img.get_fdata()
@@ -53,6 +67,21 @@ def combine_segmentation(subject, settings):
 
 
 def create_anatomical_report(subject, settings):
+    """
+    Create a PNG image that shows the quality of the tissue segmentation and the alignment to the template space for
+    the T1-weighted image.
+
+    Parameters
+    ----------
+     subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+
+    Returns
+    -------
+
+    """
     # Set template
     template_path = utils.check_template_file(settings['template_name'], settings['template_resolution'], desc=None,
                                               suffix='T1w')
