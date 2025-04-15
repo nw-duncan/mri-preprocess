@@ -18,6 +18,23 @@ from mri_preprocess import utils
 
 
 def normalise_gm(subject, settings, template_path):
+    """
+
+    Put the GM edge map calculate in the preprocessing steps into template space.
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+    template_path: str
+            Path to the template image to be used
+
+    Returns
+    -------
+
+    """
     apply_xfm = ants.ApplyTransforms(input_image=osp.join(settings['anat_in'], f'{subject}_gm-edge.nii.gz'),
                                      reference_image=template_path,
                                      transforms=[osp.join(settings['anat_in'], f'{subject}_T1w_to_MNI152NLin6Asym_1Warp.nii.gz'),
@@ -84,6 +101,7 @@ def create_anatomical_report(subject, settings):
                       axes=ax6,
                       draw_cross=False, annotate=False, black_bg=False, cmap='Paired')
     # Save image
-    fig.savefig(osp.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images', 'anat', f'{subject}_anatomical-preprocessing.png'),
+    fig.savefig(osp.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images',
+                         'anat', f'{subject}_anatomical-preprocessing.png'),
                  bbox_inches='tight', dpi=300)
     plt.close(fig)
