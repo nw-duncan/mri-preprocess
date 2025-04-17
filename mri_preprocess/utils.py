@@ -49,6 +49,8 @@ def initiate_settings():
                     number_usable_vols=None,
                     smoothing_fwhm=None,
                     run_melodic_ica=False,
+                    apply_fieldmap=False,
+                    scanner_manufacturer=None,
                     ants_reg_params={"transforms": ["Affine", "SyN"],
                                         "metric": ["Mattes", "Mattes"],
                                         "shrink_factors": [[2, 1], [3, 2, 1]],
@@ -64,7 +66,9 @@ def initiate_settings():
                     anat_in=None,
                     anat_out=None,
                     func_in=None,
-                    func_out=None
+                    func_out=None,
+                    fmap_in=None,
+                    fmap_out=None
                     )
     return settings
 
@@ -251,6 +255,7 @@ def create_output_dirs(subject, settings):
             if not path.isdir(
                     path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images', 'anat')):
                 mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images', 'anat'))
+            # Create anatomical processing directory
             if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'anat')):
                 mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'anat'))
             else:
@@ -261,6 +266,7 @@ def create_output_dirs(subject, settings):
             if not path.isdir(
                     path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images', 'func')):
                 mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images', 'func'))
+            # Create functional processing directory
             if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'func')):
                 mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'func'))
             else:
