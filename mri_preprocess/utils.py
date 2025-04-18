@@ -140,63 +140,18 @@ def check_bids_style(root_dir):
         raise IsADirectoryError('The root directory does not contain a derivatives folder')
 
 
-def create_output_dirs(subject, settings):
-    """
-    Create all the necessary output directories for specified subject.
-
-    Depending on user settings, will either overwrite existing directories or exit if directories already exist. Default
-    is to not overwrite existing directories.
-
-    Parameters
-    ----------
-    subject: str
-            Subject ID
-    settings: dict
-            Dictionary holding all settings.
-
-    Returns
-    -------
-    None
-
-    """
-    # Create directories, overwriting any existing ones
+def create_output_directories(subject, settings):
+    # Create output directories, overwriting any that are present
     if settings['overwrite_directories']:
         print('Overwriting any existing directories.')
         # Create overall output directory
         mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name']))
         # Create subject output directory
         mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject))
-        # Create quality check image directory
-        if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images')):
-            mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images'))
         # If there are sessions
         if settings['session_number']:
             # Create session output directory
             mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}"))
-            # Create session QC directory
-            if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images',
-                                        f"ses-{settings['session_number']:02d}")):
-                mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images',
-                                f"ses-{settings['session_number']:02d}"))
-            # Create modality sepcific directories
-            if settings['process_anat']:
-                mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'anat'))
-                if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images',
-                                            f"ses-{settings['session_number']:02d}", 'anat')):
-                    mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images',
-                                    f"ses-{settings['session_number']:02d}", 'anat'))
-            if settings['process_func']:
-                mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'func'))
-                if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images',
-                                            f"ses-{settings['session_number']:02d}", 'func')):
-                    mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images',
-                                    f"ses-{settings['session_number']:02d}", 'func'))
-            return
-            # If there are no sessions
-        if settings['process_anat']:
-            mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'anat'))
-        if settings['process_func']:
-            mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'func'))
         return
 
     # Create directories, not overwriting any
@@ -210,9 +165,6 @@ def create_output_dirs(subject, settings):
         mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject))
     else:
         print('Subject output directory already exists. Not overwriting.')
-    # Create quality check image directory
-    if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images')):
-        mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images'))
     # If there are sessions
     if settings['session_number']:
         if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}")):
@@ -221,98 +173,17 @@ def create_output_dirs(subject, settings):
             print('Session directory already exists. Not overwriting.')
         if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images', f"ses-{settings['session_number']:02d}")):
             mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images', f"ses-{settings['session_number']:02d}"))
-        # Create anatomical output directory
-        if settings['process_anat']:
-            if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images',
-                              f"ses-{settings['session_number']:02d}", 'anat')):
-                mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images',
-                                f"ses-{settings['session_number']:02d}", 'anat'))
-            if not path.isdir(
-                    path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'anat')):
-                mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'anat'))
-            else:
-                print('Anatomical output directory already exists. Not overwriting')
-        # Create functional output directory
-        if settings['process_func']:
-            if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images',
-                              f"ses-{settings['session_number']:02d}", 'func')):
-                mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images',
-                                f"ses-{settings['session_number']:02d}", 'func'))
-            if not path.isdir(
-                    path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'func')):
-                mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'func'))
-            else:
-                print('Functional output directory already exists. Not overwriting')
-    # If there are no sessions
-    else:
-        # Create quality check image directory
-        if not path.isdir(
-                path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images')):
-            mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images'))
-        # Create anatomical output directory
-        if settings['process_anat']:
-            # Create quality check image directory
-            if not path.isdir(
-                    path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images', 'anat')):
-                mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images', 'anat'))
-            # Create anatomical processing directory
-            if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'anat')):
-                mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'anat'))
-            else:
-                print('Anatomical output directory already exists. Not overwriting')
-        # Create functional output directory
-        if settings['process_func']:
-            # Create quality check image directory
-            if not path.isdir(
-                    path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images', 'func')):
-                mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images', 'func'))
-            # Create functional processing directory
-            if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'func')):
-                mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'func'))
-            else:
-                print('Functional output directory already exists. Not overwriting')
 
 
-def define_directories(subject, settings):
-    """
-    Put together the path for anatomical and functional inputs and outputs.
+def create_directory(settings, dir_type):
+    # Create directories, overwriting any existing ones
+    if settings['overwrite_directories']:
+        mkdir(settings[f'{dir_type}_out'])
+        return
 
-    If the user specifies that there are multiple sessions then this will be included in the path. Otherwise, paths do
-    not have a session number.
-
-    Parameters
-    ----------
-    subject
-    settings
-
-    Returns
-    -------
-    anat_in: str
-            Path to input anatomical images
-    func_in: str
-            Path to input functional images
-    anat_out: str
-            Path where output of anatomical processing should be stored
-    func_out: str
-            Path where output of functional processing should be stored
-
-    """
-    if settings['session_number']:
-        # We set the session number in the directory here
-        anat_in = path.join(settings['root_dir'], 'rawdata', subject, f"ses-{settings['session_number']:02d}", 'anat')
-        func_in = path.join(settings['root_dir'], 'rawdata', subject, f"ses-{settings['session_number']:02d}", 'func')
-
-        anat_out = path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'anat')
-        func_out = path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'func')
-
-    else:
-        anat_in = path.join(settings['root_dir'], 'rawdata', subject, 'anat')
-        func_in = path.join(settings['root_dir'], 'rawdata', subject, 'func')
-
-        anat_out = path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'anat')
-        func_out = path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'func')
-
-    return anat_in, func_in, anat_out, func_out
+    # Create directory, not overwriting
+    if not path.isdir(settings[f'{dir_type}_out']):
+        mkdir(settings[f'{dir_type}_out'])
 
 
 def prepare_directories(subject, settings):
@@ -332,9 +203,35 @@ def prepare_directories(subject, settings):
             Dictionary holding all settings.
 
     """
-    # Create directories and define relevant paths
-    create_output_dirs(subject, settings)
-    settings['anat_in'], settings['func_in'], settings['anat_out'], settings['func_out'] = define_directories(subject, settings)
+    # Define paths
+    if settings['session_number']:
+        # We set the session number in the directory here
+        settings['anat_in'] = path.join(settings['root_dir'], 'rawdata', subject, f"ses-{settings['session_number']:02d}", 'anat')
+        settings['func_in'] = path.join(settings['root_dir'], 'rawdata', subject, f"ses-{settings['session_number']:02d}", 'func')
+        settings['fmap_in'] = path.join(settings['root_dir'], 'rawdata', subject, f"ses-{settings['session_number']:02d}", 'fmap')
+
+        settings['anat_out'] = path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'anat')
+        settings['func_out'] = path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}", 'func')
+
+    else:
+        settings['anat_in'] = path.join(settings['root_dir'], 'rawdata', subject, 'anat')
+        settings['func_in'] = path.join(settings['root_dir'], 'rawdata', subject, 'func')
+        settings['fmap_in'] = path.join(settings['root_dir'], 'rawdata', subject, 'fmap')
+
+        settings['anat_out'] = path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'anat')
+        settings['func_out'] = path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, 'func')
+
+
+    # Create root output directories
+    create_output_directories(subject, settings)
+
+    # Create anatomical directory, if requrired
+    if settings['process_anat']:
+        create_directory(settings, 'anat')
+
+    # Create functional directory, if required
+    if settings['process_func']:
+        create_directory(settings, 'func')
 
     return settings
 
