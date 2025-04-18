@@ -129,8 +129,7 @@ def create_anatomical_report(subject, settings):
                       axes=ax6,
                       draw_cross=False, annotate=False, black_bg=False, cmap='Paired')
     # Save image
-    fig.savefig(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images',
-                         'anat', f'{subject}_anatomical-preprocessing.png'),
+    fig.savefig(path.join(settings['anat_out'], f'{subject}_anatomical-preprocessing_QC.png'),
                  bbox_inches='tight', dpi=300)
     plt.close(fig)
 
@@ -226,6 +225,6 @@ def create_functional_report(subject, settings, run_number):
     ax7.set_xlabel('Volume')
     ax7.set_xlim((0, all_tcs.shape[1]))
     # Save image
-    fig.savefig(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images', 'func', f"{subject}_task-{settings['task_name']}_run-{run_number}_functional-preprocessing.png"),
+    fig.savefig(path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_functional-preprocessing_QC.png"),
                 bbox_inches='tight', dpi=300)
     plt.close(fig)
