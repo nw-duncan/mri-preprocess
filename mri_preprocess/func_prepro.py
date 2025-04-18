@@ -18,6 +18,7 @@ from os import path
 from shutil import copyfile, move
 from mri_preprocess.plotting import create_functional_report
 
+
 def tr_from_json(subject, settings, run_number):
     """
     Updates the TR for the run based on the value from the sidecar json file (where available).
@@ -40,6 +41,43 @@ def tr_from_json(subject, settings, run_number):
         temp = json.load(json_file)
     settings['bold_TR'] = temp['RepetitionTime']
     return settings
+
+
+def fmap_info_from_json(subject, settings):
+    """
+    Gets necessary information from the json sidecar file (where available) to calculate fieldmaps.
+
+    Parameters
+    ----------
+    subject: str
+            Subject ID
+    settings: dictionary
+            Settings object
+    run_number: int
+            Run number
+
+    Returns
+    -------
+
+    """
+    if settings['scanner_manufacturer'] is 'Siemens':
+        with open(path.join(settings['fmap_in'], f"{subject}_phasediff.json"), 'r') as json_file:
+            temp = json.load(json_file)
+        fmap_info = {'te1': temp['EchoTime1'],
+                     'te2': temp['EchoTime2'],
+                     'dwell_time': temp['DwellTime']}
+        fmap_info['te_diff'] = fmap_info['te1'] - fmap_info['te2']
+        fmap_info['dwell_to_asym'] = fmap_info['dwell_time'] / fmap_info['te_diff']
+        return fmap_info
+    elif settings['scanner_manufacturer'] is 'GE':
+        ## Need to get a GE fieldmap to complete this!!
+        with open(path.join(settings['fmap_in'], f"{subject}_phasediff.json"), 'r') as json_file:
+            temp = json.load(json_file)
+        fmap_info = {}
+        return fmap_info
+    else:
+        print('Data comes from a scanner type for which fieldmaps cannot be processed')
+        return {'no_valid_fieldmap': None}
 
 
 def reorient_bold_to_standard(subject, settings, run_number):
@@ -402,7 +440,6 @@ def median_reference(subject, settings, run_number):
     os.remove(path.join(settings['func_out'], 'temp-bold.nii.gz'))
 
 
-
 def align_to_anatomical(subject, settings, run_number):
     """
     Runs BBR alignment between functional and anatomical images in FLIRT.
@@ -557,6 +594,7 @@ def estimate_head_motion(subject, settings, run_number):
                                       series_tr=settings['bold_TR'],
                                       out_file=path.join(settings['func_out'], f"{subject}_task-{settings['task_name']}_run-{run_number}_movement-FD.csv"))
     framewise.run()
+
 
 def slicetime_correct(subject, settings, run_number):
     """
