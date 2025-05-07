@@ -1,7 +1,7 @@
 {
     "root_dir": "/home/niall/work/fmri-preprocess",
 
-    "output_dir": "mri-preprocess-test",
+    "output_dir_name": "mri-preprocess-test",
     
     "num_threads": 10,
     
