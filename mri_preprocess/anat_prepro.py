@@ -75,9 +75,14 @@ def reduce_fov(subject, settings):
                     '-i',
                     path.join(settings['anat_out'], f'{subject}_T1w_std.nii.gz'),
                     '-m',
-                    path.join(settings['anat_out'], f'{subject}_T1w_std_fullfov2crop.mat'),
+                    path.join(settings['anat_out'], f'{subject}_T1w_std_crop2fullfov.mat'),
                     '-r',
                     path.join(settings['anat_out'], f'{subject}_T1w_std_crop.nii.gz')])
+    # Calculate inverse transform
+    invert_xfm = fsl.ConvertXFM(in_file=path.join(settings['anat_out'], f'{subject}_T1w_std_crop2fullfov.mat'),
+                                invert_xfm=True,
+                                out_file=path.join(settings['anat_out'], f'{subject}_T1w_std_fullfov2crop.mat'))
+    invert_xfm.run()
     
     
 def create_rough_mask(subject, settings):
