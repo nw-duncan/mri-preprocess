@@ -171,8 +171,6 @@ def create_output_directories(subject, settings):
             mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], subject, f"ses-{settings['session_number']:02d}"))
         else:
             print('Session directory already exists. Not overwriting.')
-        if not path.isdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images', f"ses-{settings['session_number']:02d}")):
-            mkdir(path.join(settings['root_dir'], 'derivatives', settings['output_dir_name'], 'process_qc_images', f"ses-{settings['session_number']:02d}"))
 
 
 def create_directory(settings, dir_type):
